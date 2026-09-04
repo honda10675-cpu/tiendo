@@ -5,22 +5,28 @@ import urllib.request
 import json
 from supabase import create_client, Client
 
-# Cấu hình trang
 st.set_page_config(page_title="BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC", layout="wide")
 
-# Hàm làm tròn giờ thực tế đến 30 phút gần nhất (VD: 17:42 -> 17:30 hoặc 18:00)
-def get_rounded_time():
-    now = datetime.now()
-    minute = now.minute
-    if minute < 15:
-        now = now.replace(minute=0, second=0, microsecond=0)
-    elif minute < 45:
-        now = now.replace(minute=30, second=0, microsecond=0)
-    else:
-        now = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-    return now.strftime("%Y-%m-%d %H:%M")
+# Hàm làm tròn thời gian đến mốc 30 phút gần nhất
+def round_to_30min(dt_str):
+    if not dt_str:
+        return ""
+    try:
+        # Nếu chuỗi có định dạng YYYY-MM-DD HH:MM
+        clean_str = dt_str.replace("T", " ")[:16]
+        dt = datetime.strptime(clean_str, "%Y-%m-%d %H:%M")
+        minute = dt.minute
+        if minute < 15:
+            dt = dt.replace(minute=0, second=0)
+        elif minute < 45:
+            dt = dt.replace(minute=30, second=0)
+        else:
+            dt = (dt + timedelta(hours=1)).replace(minute=0, second=0)
+        return dt.strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return dt_str
 
-# Hàm dịch tự động Việt -> Trung chuẩn xác
+# Hàm dịch Việt -> Trung tự động
 def translate_to_zh(text):
     if not text:
         return ""
@@ -47,7 +53,7 @@ except Exception:
     st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY trong Streamlit Settings!")
     st.stop()
 
-# CSS định dạng kiểu dáng chuẩn
+# Định dạng CSS giao diện
 st.markdown("""
 <style>
     .main-title {
@@ -97,15 +103,15 @@ if st.session_state.edit_id:
         pass
 
 # ---------------------------------------------------------
-# KHUNG NHẬP BÁO CÁO
+# KHUNG NHẬP BÁO CÁO (NỘI DUNG CHUNG 1 Ô)
 # ---------------------------------------------------------
 with st.container():
     st.markdown("**Tên Máy / 设备名称:**")
     machine = st.text_input("machine_input", value=edit_data.get("machine_name", ""), placeholder="Nhập tên máy...", label_visibility="collapsed")
 
-    st.markdown("**Thời Gian Bắt Đầu (Tự động làm tròn 30p) / 开始时间:**")
-    start_time_val = edit_data.get("start_time") if edit_data.get("start_time") else get_rounded_time()
-    start_time = st.text_input("start_time_input", value=start_time_val, label_visibility="collapsed")
+    st.markdown("**Thời Gian Bắt Đầu (Làm tròn 30 phút) / 开始时间:**")
+    default_time = edit_data.get("start_time") if edit_data.get("start_time") else datetime.now().strftime("%Y-%m-%d %H:%M")
+    start_time = st.text_input("start_time_input", value=round_to_30min(default_time), label_visibility="collapsed")
 
     st.markdown("**Nội Dung Sửa Chữa & Giải Pháp / 维修内容与解决方案:**")
     c_vi = st.text_area("c_vi_input", value=edit_data.get("content_vi", ""), placeholder="Nhập nội dung hư hỏng và phương án sửa chữa...", height=90, label_visibility="collapsed")
@@ -120,9 +126,7 @@ with st.container():
             if not machine or not c_vi or not est_time:
                 st.warning("Vui lòng nhập đủ thông tin Máy, Nội dung và Thời gian dự kiến!")
             else:
-                # Tự động dịch sang Tiếng Trung
                 c_zh = translate_to_zh(c_vi)
-
                 payload = {
                     "machine_name": machine,
                     "start_time": start_time,
@@ -136,18 +140,18 @@ with st.container():
                 if st.session_state.edit_id:
                     supabase.table("repair_reports").update(payload).eq("id", st.session_state.edit_id).execute()
                     st.session_state.edit_id = None
-                    st.success("Đã cập nhật báo cáo!")
+                    st.success("Đã cập nhật!")
                 else:
                     payload["status"] = "Đang sửa"
                     supabase.table("repair_reports").insert(payload).execute()
-                    st.success("Đã thêm báo cáo mới!")
+                    st.success("Đã thêm báo cáo!")
                 st.rerun()
 
     with col_b2:
         st.button("Tải Hình Báo Cáo / 下载图片", use_container_width=True)
 
 # ---------------------------------------------------------
-# BẢNG TIẾN ĐỘ SỬA CHỮA
+# BẢNG TIẾN ĐỘ SỬA CHỮA (SONG NGỮ + TỰ ĐỘNG XUỐNG DÒNG)
 # ---------------------------------------------------------
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
 
@@ -174,10 +178,11 @@ else:
         row_id = row.get("id")
         is_done = row.get("status") == "Hoàn thành"
         
-        # Ưu tiên lấy start_time đã làm tròn 30p
-        time_display = row.get("start_time") if row.get("start_time") else row.get("created_at", "")[:16].replace("T", " ")
+        # Tự động làm tròn lại các mốc giờ cũ (17:42 -> 17:30)
+        raw_time = row.get("start_time") if row.get("start_time") else row.get("created_at", "")
+        time_display = round_to_30min(raw_time)
 
-        # Tự động dịch bổ sung nếu bản ghi cũ chưa có Tiếng Trung
+        # Tự động dịch bổ sung Tiếng Trung nếu dòng cũ chưa có
         content_vi = row.get("content_vi", "")
         content_zh = row.get("content_zh", "")
         if content_vi and not content_zh:

@@ -8,7 +8,7 @@ from supabase import create_client, Client
 # Cấu hình trang
 st.set_page_config(page_title="BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC", layout="wide")
 
-# Hàm làm tròn giờ thực tế đến 30 phút gần nhất
+# Hàm làm tròn giờ thực tế đến 30 phút gần nhất (VD: 17:42 -> 17:30 hoặc 18:00)
 def get_rounded_time():
     now = datetime.now()
     minute = now.minute
@@ -20,7 +20,7 @@ def get_rounded_time():
         now = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
     return now.strftime("%Y-%m-%d %H:%M")
 
-# Hàm dịch tự động Việt -> Trung (Không lỗi thư viện)
+# Hàm dịch tự động Việt -> Trung chuẩn xác
 def translate_to_zh(text):
     if not text:
         return ""
@@ -47,7 +47,7 @@ except Exception:
     st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY trong Streamlit Settings!")
     st.stop()
 
-# CSS định dạng giao diện
+# CSS định dạng kiểu dáng chuẩn
 st.markdown("""
 <style>
     .main-title {
@@ -74,6 +74,7 @@ st.markdown("""
     .text-zh {
         color: #d97706;
         font-size: 13px;
+        font-weight: 500;
         display: block;
         margin-top: 3px;
     }
@@ -96,14 +97,14 @@ if st.session_state.edit_id:
         pass
 
 # ---------------------------------------------------------
-# KHUNG NHẬP BÁO CÁO (CHUNG 1 Ô NỘI DUNG)
+# KHUNG NHẬP BÁO CÁO
 # ---------------------------------------------------------
 with st.container():
     st.markdown("**Tên Máy / 设备名称:**")
     machine = st.text_input("machine_input", value=edit_data.get("machine_name", ""), placeholder="Nhập tên máy...", label_visibility="collapsed")
 
     st.markdown("**Thời Gian Bắt Đầu (Tự động làm tròn 30p) / 开始时间:**")
-    start_time_val = edit_data.get("start_time", get_rounded_time())
+    start_time_val = edit_data.get("start_time") if edit_data.get("start_time") else get_rounded_time()
     start_time = st.text_input("start_time_input", value=start_time_val, label_visibility="collapsed")
 
     st.markdown("**Nội Dung Sửa Chữa & Giải Pháp / 维修内容与解决方案:**")
@@ -146,7 +147,7 @@ with st.container():
         st.button("Tải Hình Báo Cáo / 下载图片", use_container_width=True)
 
 # ---------------------------------------------------------
-# BẢNG TIẾN ĐỘ SỬA CHỮA (SONG NGỮ XUỐNG DÒNG)
+# BẢNG TIẾN ĐỘ SỬA CHỮA
 # ---------------------------------------------------------
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
 
@@ -159,7 +160,6 @@ except Exception:
 if not reports:
     st.info("Chưa có dữ liệu báo cáo nào.")
 else:
-    # Chia cột tỉ lệ chuẩn khớp hình mẫu
     h_col1, h_col2, h_col3, h_col4, h_col5, h_col6 = st.columns([0.6, 1.2, 1.8, 3.8, 1.8, 1.8])
     with h_col1: st.markdown("**STT<br><span style='font-size:11px;'>序号</span>**", unsafe_allow_html=True)
     with h_col2: st.markdown("**Máy<br><span style='font-size:11px;'>设备</span>**", unsafe_allow_html=True)
@@ -173,7 +173,15 @@ else:
     for idx, row in enumerate(reports, 1):
         row_id = row.get("id")
         is_done = row.get("status") == "Hoàn thành"
+        
+        # Ưu tiên lấy start_time đã làm tròn 30p
         time_display = row.get("start_time") if row.get("start_time") else row.get("created_at", "")[:16].replace("T", " ")
+
+        # Tự động dịch bổ sung nếu bản ghi cũ chưa có Tiếng Trung
+        content_vi = row.get("content_vi", "")
+        content_zh = row.get("content_zh", "")
+        if content_vi and not content_zh:
+            content_zh = translate_to_zh(content_vi)
 
         c1, c2, c3, c4, c5, c6 = st.columns([0.6, 1.2, 1.8, 3.8, 1.8, 1.8])
 
@@ -181,16 +189,14 @@ else:
         with c2: st.write(f"**{row.get('machine_name')}**")
         with c3: st.caption(time_display)
         with c4:
-            # Hiển thị Tiếng Việt trên, Tiếng Trung xuống dòng dưới
-            st.write(row.get("content_vi"))
-            if row.get("content_zh"):
-                st.markdown(f'<span class="text-zh">{row.get("content_zh")}</span>', unsafe_allow_html=True)
+            st.write(content_vi)
+            if content_zh:
+                st.markdown(f'<span class="text-zh">{content_zh}</span>', unsafe_allow_html=True)
         with c5:
             st.write(row.get("estimated_time"))
             if is_done:
                 st.markdown("🟢 **Đã xong / 已完成**")
 
-        # Nút thao tác
         with c6:
             act_col1, act_col2, act_col3 = st.columns(3)
             
@@ -201,7 +207,7 @@ else:
 
             with act_col2:
                 check_icon = "✅" if is_done else "⬜"
-                if st.button(check_icon, key=f"done_{row_id}", help="Tích hoàn thành (bôi xanh)"):
+                if st.button(check_icon, key=f"done_{row_id}", help="Tích hoàn thành"):
                     new_status = "Đang sửa" if is_done else "Hoàn thành"
                     supabase.table("repair_reports").update({"status": new_status}).eq("id", row_id).execute()
                     st.rerun()
@@ -211,7 +217,7 @@ else:
                     st.session_state[f"confirm_del_{row_id}"] = True
 
             if st.session_state.get(f"confirm_del_{row_id}"):
-                pwd = st.text_input("Mật khẩu xóa (230):", type="password", key=f"pwd_{row_id}")
+                pwd = st.text_input("Mật khẩu (230):", type="password", key=f"pwd_{row_id}")
                 col_pass1, col_pass2 = st.columns(2)
                 with col_pass1:
                     if st.button("OK", key=f"ok_del_{row_id}"):

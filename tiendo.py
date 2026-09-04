@@ -7,20 +7,24 @@ from supabase import Client, create_client
 
 st.set_page_config(page_title="BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC", layout="wide")
 
-# Lấy thời gian thực chuẩn múi giờ Việt Nam (UTC+7)
-def get_vietnam_time():
-    tz_vn = timezone(timedelta(hours=7))
-    now_vn = datetime.now(tz_vn)
-    return now_vn.strftime("%Y-%m-%d %H:%M")
-
-def format_time_display(dt_str):
+# Chuyển đổi thời gian UTC từ Supabase sang múi giờ Việt Nam (+7)
+def convert_utc_to_vn(dt_str):
     if not dt_str:
-        return get_vietnam_time()
+        tz_vn = timezone(timedelta(hours=7))
+        return datetime.now(tz_vn).strftime("%Y-%m-%d %H:%M")
     try:
-        clean_str = dt_str.replace("T", " ")[:16]
-        return clean_str
+        clean_str = dt_str.replace("T", " ")[:19]
+        dt = datetime.strptime(clean_str, "%Y-%m-%d %H:%M:%S")
+        dt_vn = dt + timedelta(hours=7)
+        return dt_vn.strftime("%Y-%m-%d %H:%M")
     except Exception:
-        return dt_str
+        try:
+            clean_str = dt_str.replace("T", " ")[:16]
+            dt = datetime.strptime(clean_str, "%Y-%m-%d %H:%M")
+            dt_vn = dt + timedelta(hours=7)
+            return dt_vn.strftime("%Y-%m-%d %H:%M")
+        except Exception:
+            return dt_str[:16] if len(dt_str) >= 16 else dt_str
 
 # Hàm dịch đa tầng Việt -> Trung
 def translate_to_zh(text):
@@ -60,7 +64,7 @@ try:
     key = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(url, key)
 except Exception:
-    st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY trong Streamlit Settings!")
+    st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY!")
     st.stop()
 
 # CSS giao diện
@@ -112,9 +116,7 @@ if st.session_state.edit_id:
     except Exception:
         pass
 
-# ---------------------------------------------------------
 # FORM NHẬP BÁO CÁO
-# ---------------------------------------------------------
 with st.container():
     st.markdown("**Tên Máy / 设备名称:**")
     machine = st.text_input("machine_input", value=edit_data.get("machine_name", ""), placeholder="Nhập tên máy...", label_visibility="collapsed")
@@ -138,7 +140,6 @@ with st.container():
                 c_zh = translate_to_zh(c_vi)
                 s_zh = translate_to_zh(s_vi) if s_vi else ""
 
-                # Thử lưu theo dạng 1: Đầy đủ các cột mới
                 payload_full = {
                     "machine_name": machine,
                     "content_vi": c_vi,
@@ -148,7 +149,6 @@ with st.container():
                     "estimated_time": est_time
                 }
 
-                # Thử lưu theo dạng 2: Tương thích bảng cũ chỉ có cột solution/content
                 payload_legacy = {
                     "machine_name": machine,
                     "content_vi": c_vi,
@@ -157,16 +157,7 @@ with st.container():
                     "estimated_time": est_time
                 }
 
-                # Thử lưu theo dạng 3: Tương thích tối giản nhất
-                payload_safe = {
-                    "machine_name": machine,
-                    "content_vi": c_vi,
-                    "content_zh": c_zh,
-                    "estimated_time": est_time
-                }
-
                 saved = False
-                # BƯỚC 1: Lưu full
                 try:
                     if st.session_state.edit_id:
                         supabase.table("repair_reports").update(payload_full).eq("id", st.session_state.edit_id).execute()
@@ -177,7 +168,6 @@ with st.container():
                 except Exception:
                     pass
 
-                # BƯỚC 2: Lưu theo bảng legacy
                 if not saved:
                     try:
                         if st.session_state.edit_id:
@@ -186,17 +176,6 @@ with st.container():
                             payload_legacy["status"] = "Đang sửa"
                             supabase.table("repair_reports").insert(payload_legacy).execute()
                         saved = True
-                    except Exception:
-                        pass
-
-                # BƯỚC 3: Lưu an toàn tuyệt đối
-                if not saved:
-                    try:
-                        if st.session_state.edit_id:
-                            supabase.table("repair_reports").update(payload_safe).eq("id", st.session_state.edit_id).execute()
-                        else:
-                            payload_safe["status"] = "Đang sửa"
-                            supabase.table("repair_reports").insert(payload_safe).execute()
                     except Exception as e:
                         st.error(f"Lỗi Supabase: {e}")
                         st.stop()
@@ -208,9 +187,7 @@ with st.container():
     with col_b2:
         st.button("Tải Hình Báo Cáo / 下载图片", use_container_width=True)
 
-# ---------------------------------------------------------
-# BẢNG TIẾN ĐỘ SỬA CHỮA SONG NGỮ TỰ ĐỘNG
-# ---------------------------------------------------------
+# BẢNG TIẾN ĐỘ SỬA CHỮA
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
 
 try:
@@ -237,17 +214,15 @@ else:
         row_id = row.get("id")
         is_done = row.get("status") == "Hoàn thành"
         
-        # Tự động lấy thời gian tạo theo múi giờ Việt Nam
-        raw_time = row.get("start_time") if row.get("start_time") else row.get("created_at", "")
-        time_display = format_time_display(raw_time)
+        # Chuyển đổi created_at chuẩn múi giờ Việt Nam (+7)
+        raw_time = row.get("created_at", "")
+        time_display = convert_utc_to_vn(raw_time)
 
-        # Lấy nội dung hư hỏng & dịch
         c_vi_val = row.get("content_vi", "")
         c_zh_val = row.get("content_zh")
         if not c_zh_val or not str(c_zh_val).strip():
             c_zh_val = translate_to_zh(c_vi_val)
 
-        # Lấy giải pháp từ solution_vi hoặc solution
         s_vi_val = row.get("solution_vi") if row.get("solution_vi") else row.get("solution", "")
         s_zh_val = row.get("solution_zh")
         if not s_zh_val or not str(s_zh_val).strip():

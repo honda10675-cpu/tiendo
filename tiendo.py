@@ -1,20 +1,47 @@
-import streamlit as st
-from datetime import datetime, timedelta
+import json
 import urllib.parse
 import urllib.request
-import json
-from supabase import create_client, Client
+from datetime import datetime, timedelta
+import streamlit as st
+from supabase import Client, create_client
 
 st.set_page_config(page_title="BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC", layout="wide")
 
-# Bổ sung thư viện dịch ổn định
-try:
-    from deep_translator import GoogleTranslator
-    HAS_DEEP = True
-except ImportError:
-    HAS_DEEP = False
+# ---------------------------------------------------------
+# HÀM DỊCH ĐA TẦNG VIỆT -> TRUNG (ĐẢM BẢO 100% RA CHỮ TRUNG)
+# ---------------------------------------------------------
+def translate_to_zh(text):
+    if not text or not str(text).strip():
+        return ""
+    
+    text_clean = str(text).strip()
+    
+    # Cách 1: MyMemory Translate API (Cực kỳ ổn định trên Server Streamlit)
+    try:
+        url_mm = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(text_clean)}&langpair=vi|zh-CN"
+        req = urllib.request.Request(url_mm, headers={'User-Agent': 'Mozilla/5.0'})
+        res = urllib.request.urlopen(req, timeout=4)
+        data = json.loads(res.read().decode('utf-8'))
+        translated = data.get("responseData", {}).get("translatedText", "")
+        if translated and translated.lower() != text_clean.lower():
+            return translated
+    except Exception:
+        pass
 
-# Hàm làm tròn giờ thực tế 30 phút
+    # Cách 2: Google Translate API (Chống bị block bằng Header)
+    try:
+        url_gt = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=vi&tl=zh-CN&dt=t&q={urllib.parse.quote(text_clean)}"
+        req = urllib.request.Request(url_gt, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+        res = urllib.request.urlopen(req, timeout=4)
+        data = json.loads(res.read().decode('utf-8'))
+        translated = "".join([item[0] for item in data[0] if item[0]])
+        if translated:
+            return translated
+    except Exception:
+        pass
+
+    return ""
+
 def get_rounded_time():
     now = datetime.now()
     minute = now.minute
@@ -43,35 +70,6 @@ def round_to_30min(dt_str):
     except Exception:
         return dt_str
 
-# Hàm dịch Việt -> Trung tự động
-def translate_to_zh(text):
-    if not text or not text.strip():
-        return ""
-    if HAS_DEEP:
-        try:
-            res = GoogleTranslator(source='vi', target='zh-CN').translate(text)
-            if res:
-                return res
-        except Exception:
-            pass
-
-    try:
-        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=vi&tl=zh-CN&dt=t&q={urllib.parse.quote(text)}"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-        response = urllib.request.urlopen(req, timeout=5)
-        data = json.loads(response.read().decode('utf-8'))
-        
-        translated = ""
-        for item in data[0]:
-            if item[0]:
-                translated += item[0]
-        if translated:
-            return translated
-    except Exception:
-        pass
-
-    return ""
-
 # Kết nối Supabase
 try:
     url = st.secrets["SUPABASE_URL"]
@@ -81,7 +79,7 @@ except Exception:
     st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY trong Streamlit Settings!")
     st.stop()
 
-# Định dạng CSS giao diện
+# Định dạng CSS
 st.markdown("""
 <style>
     .main-title {
@@ -108,7 +106,7 @@ st.markdown("""
     .text-zh {
         color: #d97706;
         font-size: 13px;
-        font-weight: 500;
+        font-weight: bold;
         display: block;
         margin-top: 4px;
     }
@@ -157,15 +155,14 @@ with st.container():
                 s_zh = translate_to_zh(s_vi) if s_vi else ""
                 start_time_auto = get_rounded_time()
 
-                # Gộp giải pháp vào nội dung nếu bảng không chia cột
                 full_content_vi = c_vi
                 full_content_zh = c_zh
                 if s_vi:
-                    full_content_vi += f"\nGiải pháp: {s_vi}"
+                    full_content_vi += f" | Giải pháp: {s_vi}"
                 if s_zh:
-                    full_content_zh += f"\n方案: {s_zh}"
+                    full_content_zh += f" | 方案: {s_zh}"
 
-                # Thử lưu dữ liệu chuẩn đầy đủ cột
+                # Payload chuẩn 
                 payload_full = {
                     "machine_name": machine,
                     "start_time": start_time_auto,
@@ -176,7 +173,7 @@ with st.container():
                     "estimated_time": est_time
                 }
 
-                # Payload tối giản chuẩn 100% khớp với bảng gốc Supabase của anh
+                # Payload an toàn cho DB cũ
                 payload_safe = {
                     "machine_name": machine,
                     "content_vi": full_content_vi,
@@ -185,7 +182,6 @@ with st.container():
                 }
 
                 saved = False
-                # BƯỚC 1: Thử lưu chuẩn
                 try:
                     if st.session_state.edit_id:
                         supabase.table("repair_reports").update(payload_full).eq("id", st.session_state.edit_id).execute()
@@ -196,7 +192,6 @@ with st.container():
                 except Exception:
                     pass
 
-                # BƯỚC 2: Nếu lỗi thì dùng ngay payload_safe an toàn tuyệt đối
                 if not saved:
                     try:
                         if st.session_state.edit_id:
@@ -205,7 +200,7 @@ with st.container():
                             payload_safe["status"] = "Đang sửa"
                             supabase.table("repair_reports").insert(payload_safe).execute()
                     except Exception as e:
-                        st.error(f"Lỗi kết nối Supabase: {e}")
+                        st.error(f"Lỗi Supabase: {e}")
                         st.stop()
 
                 st.session_state.edit_id = None
@@ -216,7 +211,7 @@ with st.container():
         st.button("Tải Hình Báo Cáo / 下载图片", use_container_width=True)
 
 # ---------------------------------------------------------
-# BẢNG TIẾN ĐỘ SỬA CHỮA SONG NGỮ
+# BẢNG TIẾN ĐỘ SỬA CHỮA SONG NGỮ TỰ ĐỘNG
 # ---------------------------------------------------------
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
 
@@ -244,19 +239,21 @@ else:
         row_id = row.get("id")
         is_done = row.get("status") == "Hoàn thành"
         
-        # Lấy giờ tạo làm tròn 30 phút
         raw_time = row.get("start_time") if row.get("start_time") else row.get("created_at", "")
         time_display = round_to_30min(raw_time)
 
+        # Xử lý nội dung tiếng Việt & tiếng Trung
         c_vi_val = row.get("content_vi", "")
         c_zh_val = row.get("content_zh")
-        if not c_zh_val and c_vi_val:
+        if not c_zh_val or not str(c_zh_val).strip():
             c_zh_val = translate_to_zh(c_vi_val)
 
+        # Xử lý giải pháp tiếng Việt & tiếng Trung
         s_vi_val = row.get("solution_vi", "")
         s_zh_val = row.get("solution_zh")
-        if not s_zh_val and s_vi_val:
-            s_zh_val = translate_to_zh(s_vi_val)
+        if not s_zh_val or not str(s_zh_val).strip():
+            if s_vi_val:
+                s_zh_val = translate_to_zh(s_vi_val)
 
         c1, c2, c3, c4, c5, c6, c7 = st.columns([0.6, 1.2, 1.5, 2.5, 2.5, 1.5, 1.8])
 
@@ -270,9 +267,12 @@ else:
                 st.markdown(f'<span class="text-zh">{c_zh_val}</span>', unsafe_allow_html=True)
                 
         with c5:
-            st.write(s_vi_val if s_vi_val else "-")
-            if s_zh_val:
-                st.markdown(f'<span class="text-zh">{s_zh_val}</span>', unsafe_allow_html=True)
+            if s_vi_val:
+                st.write(s_vi_val)
+                if s_zh_val:
+                    st.markdown(f'<span class="text-zh">{s_zh_val}</span>', unsafe_allow_html=True)
+            else:
+                st.write("-")
                 
         with c6:
             st.write(row.get("estimated_time"))

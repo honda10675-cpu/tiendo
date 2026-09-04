@@ -32,7 +32,6 @@ def translate_to_zh(text):
         return ""
     text_clean = str(text).strip()
     
-    # MyMemory API
     try:
         url_mm = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(text_clean)}&langpair=vi|zh-CN"
         req = urllib.request.Request(url_mm, headers={'User-Agent': 'Mozilla/5.0'})
@@ -44,7 +43,6 @@ def translate_to_zh(text):
     except Exception:
         pass
 
-    # Google Translate API
     try:
         url_gt = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=vi&tl=zh-CN&dt=t&q={urllib.parse.quote(text_clean)}"
         req = urllib.request.Request(url_gt, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
@@ -67,36 +65,61 @@ except Exception:
     st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY!")
     st.stop()
 
-# CSS giao diện
+# CSS giao diện chuẩn Table hàng ngang cho Điện thoại
 st.markdown("""
 <style>
     .main-title {
         text-align: center;
         color: #1e40af;
         font-weight: bold;
-        font-size: 26px;
+        font-size: 22px;
         margin-bottom: 5px;
     }
     .sub-title {
         text-align: center;
         color: #475569;
-        font-size: 14px;
+        font-size: 13px;
         margin-bottom: 20px;
     }
-    .table-header {
-        text-align: center;
+    
+    /* Ép bảng hiển thị dạng cuộn ngang trên điện thoại */
+    .table-container {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin-top: 15px;
+    }
+    .custom-table {
+        width: 100%;
+        min-width: 800px; /* Đảm bảo luôn giữ kích thước hàng ngang */
+        border-collapse: collapse;
+        background-color: #ffffff;
+    }
+    .custom-table th {
+        background-color: #f1f5f9;
+        color: #1e293b;
         font-weight: bold;
-        font-size: 18px;
-        color: #334155;
-        margin-top: 25px;
-        margin-bottom: 15px;
+        text-align: center;
+        padding: 10px 8px;
+        border-bottom: 2px solid #cbd5e1;
+        font-size: 13px;
+    }
+    .custom-table td {
+        padding: 10px 8px;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: middle;
+        font-size: 13px;
     }
     .text-zh {
         color: #d97706;
-        font-size: 13px;
-        font-weight: bold;
+        font-size: 12px;
+        font-weight: 500;
         display: block;
-        margin-top: 4px;
+        margin-top: 3px;
+    }
+    .status-done {
+        color: #15803d;
+        font-weight: bold;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -185,10 +208,10 @@ with st.container():
                 st.rerun()
 
     with col_b2:
-        st.button("Tải Hình Báo Cáo / 下载图片", use_container_width=True)
+        st.button("Tải Báo Cáo / 下载图片", use_container_width=True)
 
-# BẢNG TIẾN ĐỘ SỬA CHỮA
-st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
+# BẢNG TIẾN ĐỘ SỬA CHỮA HÀNG NGANG CHUẨN ĐIỆN THOẠI
+st.markdown("<h4 style='text-align: center; margin-top: 20px;'>BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</h4>", unsafe_allow_html=True)
 
 try:
     res = supabase.table("repair_reports").select("*").order("id", desc=True).execute()
@@ -199,93 +222,98 @@ except Exception:
 if not reports:
     st.info("Chưa có dữ liệu báo cáo nào.")
 else:
-    h_col1, h_col2, h_col3, h_col4, h_col5, h_col6, h_col7 = st.columns([0.6, 1.2, 1.5, 2.5, 2.5, 1.5, 1.8])
-    with h_col1: st.markdown("**STT<br><span style='font-size:11px;'>序号</span>**", unsafe_allow_html=True)
-    with h_col2: st.markdown("**Máy<br><span style='font-size:11px;'>设备</span>**", unsafe_allow_html=True)
-    with h_col3: st.markdown("**Thời Gian Bắt Đầu<br><span style='font-size:11px;'>开始时间</span>**", unsafe_allow_html=True)
-    with h_col4: st.markdown("**Nội Dung<br><span style='font-size:11px;'>内容</span>**", unsafe_allow_html=True)
-    with h_col5: st.markdown("**Giải Pháp + Linh Kiện<br><span style='font-size:11px;'>解决方案+规格</span>**", unsafe_allow_html=True)
-    with h_col6: st.markdown("**Thời Gian Dự Kiến<br><span style='font-size:11px;'>预计时间</span>**", unsafe_allow_html=True)
-    with h_col7: st.markdown("**Thao Tác<br><span style='font-size:11px;'>操作</span>**", unsafe_allow_html=True)
-
-    st.divider()
+    # Render bảng HTML cuộn ngang cố định
+    html_table = """
+    <div class="table-container">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">STT<br><small>序号</small></th>
+                    <th style="width: 10%;">Máy<br><small>设备</small></th>
+                    <th style="width: 15%;">Thời Gian Bắt Đầu<br><small>开始时间</small></th>
+                    <th style="width: 25%;">Nội Dung<br><small>内容</small></th>
+                    <th style="width: 25%;">Giải Pháp + Linh Kiện<br><small>解决方案+规格</small></th>
+                    <th style="width: 12%;">Thời Gian Dự Kiến<br><small>预计时间</small></th>
+                    <th style="width: 8%;">Trạng Thái<br><small>状态</small></th>
+                </tr>
+            </thead>
+            <tbody>
+    """
 
     for idx, row in enumerate(reports, 1):
-        row_id = row.get("id")
         is_done = row.get("status") == "Hoàn thành"
-        
-        # Chuyển đổi created_at chuẩn múi giờ Việt Nam (+7)
-        raw_time = row.get("created_at", "")
-        time_display = convert_utc_to_vn(raw_time)
+        time_display = convert_utc_to_vn(row.get("created_at", ""))
 
         c_vi_val = row.get("content_vi", "")
-        c_zh_val = row.get("content_zh")
-        if not c_zh_val or not str(c_zh_val).strip():
-            c_zh_val = translate_to_zh(c_vi_val)
+        c_zh_val = row.get("content_zh") if row.get("content_zh") else translate_to_zh(c_vi_val)
 
         s_vi_val = row.get("solution_vi") if row.get("solution_vi") else row.get("solution", "")
-        s_zh_val = row.get("solution_zh")
-        if not s_zh_val or not str(s_zh_val).strip():
-            if s_vi_val:
-                s_zh_val = translate_to_zh(s_vi_val)
+        s_zh_val = row.get("solution_zh") if row.get("solution_zh") else translate_to_zh(s_vi_val)
 
-        c1, c2, c3, c4, c5, c6, c7 = st.columns([0.6, 1.2, 1.5, 2.5, 2.5, 1.5, 1.8])
+        status_html = '<span class="status-done">🟢 Đã xong<br><small>已完成</small></span>' if is_done else '🟡 Đang sửa<br><small>维修中</small>'
 
-        with c1: st.write(f"**{idx}**")
-        with c2: st.write(f"**{row.get('machine_name')}**")
-        with c3: st.caption(time_display)
-        
-        with c4:
-            st.write(c_vi_val if c_vi_val else "")
-            if c_zh_val:
-                st.markdown(f'<span class="text-zh">{c_zh_val}</span>', unsafe_allow_html=True)
-                
-        with c5:
-            if s_vi_val:
-                st.write(s_vi_val)
-                if s_zh_val:
-                    st.markdown(f'<span class="text-zh">{s_zh_val}</span>', unsafe_allow_html=True)
-            else:
-                st.write("")
-                
-        with c6:
-            st.write(row.get("estimated_time"))
-            if is_done:
-                st.markdown("🟢 **Đã xong / 已完成**")
+        html_table += f"""
+            <tr>
+                <td style="text-align: center;"><b>{idx}</b></td>
+                <td style="text-align: center;"><b>{row.get('machine_name', '')}</b></td>
+                <td style="text-align: center; color: #64748b; font-size: 11px;">{time_display}</td>
+                <td>{c_vi_val}<span class="text-zh">{c_zh_val}</span></td>
+                <td>{s_vi_val}<span class="text-zh">{s_zh_val}</span></td>
+                <td style="text-align: center;">{row.get('estimated_time', '')}</td>
+                <td style="text-align: center;">{status_html}</td>
+            </tr>
+        """
 
-        with c7:
-            act_col1, act_col2, act_col3 = st.columns(3)
-            
-            with act_col1:
-                if st.button("✏️", key=f"edit_{row_id}", help="Sửa"):
-                    st.session_state.edit_id = row_id
+    html_table += """
+            </tbody>
+        </table>
+    </div>
+    """
+    st.markdown(html_table, unsafe_allow_html=True)
+
+    # Khung thao tác sửa / xóa / hoàn thành gọn gàng bên dưới
+    st.divider()
+    st.markdown("**Quản lý bản ghi / 操作:**")
+    
+    col_sel, col_act1, col_act2, col_act3 = st.columns([3, 1, 1, 1])
+    with col_sel:
+        report_options = {f"STT {i} - {r.get('machine_name')}": r.get('id') for i, r in enumerate(reports, 1)}
+        selected_option = st.selectbox("Chọn máy thao tác:", list(report_options.keys()), label_visibility="collapsed")
+        selected_id = report_options[selected_option]
+
+    # Tìm thông tin bản ghi được chọn
+    selected_row = next((r for r in reports if r.get('id') == selected_id), None)
+    is_selected_done = selected_row.get("status") == "Hoàn thành" if selected_row else False
+
+    with col_act1:
+        if st.button("✏️ Sửa", use_container_width=True):
+            st.session_state.edit_id = selected_id
+            st.rerun()
+
+    with col_act2:
+        check_label = "⬜ Chưa xong" if is_selected_done else "✅ Hoàn thành"
+        if st.button(check_label, use_container_width=True):
+            new_status = "Đang sửa" if is_selected_done else "Hoàn thành"
+            supabase.table("repair_reports").update({"status": new_status}).eq("id", selected_id).execute()
+            st.rerun()
+
+    with col_act3:
+        if st.button("🗑️ Xóa", use_container_width=True):
+            st.session_state["confirm_del_id"] = selected_id
+
+    if st.session_state.get("confirm_del_id") == selected_id:
+        pwd = st.text_input("Mật khẩu (230):", type="password", key="del_pwd_input")
+        c_p1, c_p2 = st.columns(2)
+        with c_p1:
+            if st.button("Xác nhận xóa", type="primary", use_container_width=True):
+                if pwd == "230":
+                    supabase.table("repair_reports").delete().eq("id", selected_id).execute()
+                    st.session_state.pop("confirm_del_id", None)
+                    st.success("Đã xóa!")
                     st.rerun()
-
-            with act_col2:
-                check_icon = "✅" if is_done else "⬜"
-                if st.button(check_icon, key=f"done_{row_id}", help="Tích hoàn thành"):
-                    new_status = "Đang sửa" if is_done else "Hoàn thành"
-                    supabase.table("repair_reports").update({"status": new_status}).eq("id", row_id).execute()
-                    st.rerun()
-
-            with act_col3:
-                if st.button("🗑️", key=f"del_{row_id}", help="Xóa"):
-                    st.session_state[f"confirm_del_{row_id}"] = True
-
-            if st.session_state.get(f"confirm_del_{row_id}"):
-                pwd = st.text_input("Mật khẩu (230):", type="password", key=f"pwd_{row_id}")
-                col_pass1, col_pass2 = st.columns(2)
-                with col_pass1:
-                    if st.button("OK", key=f"ok_del_{row_id}"):
-                        if pwd == "230":
-                            supabase.table("repair_reports").delete().eq("id", row_id).execute()
-                            st.session_state.pop(f"confirm_del_{row_id}", None)
-                            st.success("Đã xóa!")
-                            st.rerun()
-                        else:
-                            st.error("Sai MK!")
-                with col_pass2:
-                    if st.button("Hủy", key=f"cancel_del_{row_id}"):
-                        st.session_state.pop(f"confirm_del_{row_id}", None)
-                        st.rerun()
-        st.divider()
+                else:
+                    st.error("Mật khẩu sai!")
+        with c_p2:
+            if st.button("Hủy", use_container_width=True):
+                st.session_state.pop("confirm_del_id", None)
+                st.rerun()

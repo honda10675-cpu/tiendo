@@ -1,99 +1,158 @@
 import streamlit as st
+from datetime import datetime
 from supabase import create_client, Client
 
-st.set_page_config(page_title="Báo Cáo Sửa Chữa Máy Móc", layout="wide")
+# Cấu hình giao diện Streamlit
+st.set_page_config(page_title="Báo Cáo Tiến Độ Sửa Chữa Máy Móc", layout="centered")
 
 # Kết nối Supabase
 try:
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(url, key)
-except Exception as e:
+except Exception:
     st.error("Chưa cấu hình Secrets Supabase trong Streamlit Settings!")
     st.stop()
 
-st.title("BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC")
-st.subheader("设备维修进度汇报")
+# Tùy chỉnh CSS để giống hệt mẫu
+st.markdown("""
+<style>
+    .block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
+    
+    /* Ô nhập liệu */
+    .stTextInput > div > div > input, .stTextArea > div > div > textarea {
+        background-color: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+    }
 
-# Form nhập báo cáo
-with st.expander("➕ Thêm báo cáo mới / 新建汇报", expanded=True):
-    with st.form("repair_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            machine = st.text_input("Tên / Mã Máy (设备名称/编号)*")
-            c_vi = st.text_area("Nội Dung Sửa Chữa (Tiếng Việt)*")
-            c_zh = st.text_area("Nội Dung Sửa Chữa (Tiếng Trung - 中文)")
-        with col2:
-            est_time = st.text_input("Thời Gian Dự Kiến Hoàn Thành (预计完成时间)*")
-            s_vi = st.text_area("Giải Pháp + Quy Cách Linh Kiện (Tiếng Việt)*")
-            s_zh = st.text_area("Giải Pháp + Quy Cách Linh Kiện (Tiếng Trung - 中文)")
+    /* Tiêu đề bảng */
+    .table-title {
+        text-align: center;
+        font-weight: bold;
+        font-size: 20px;
+        color: #334155;
+        margin-top: 25px;
+        margin-bottom: 15px;
+    }
 
-        submitted = st.form_submit_button("Lưu Báo Cáo / 保存汇报", use_container_width=True)
-        if submitted:
-            if not machine or not c_vi or not s_vi or not est_time:
-                st.warning("Vui lòng điền đầy đủ các thông tin có dấu *")
-            else:
-                data = {
-                    "machine_name": machine,
-                    "content_vi": c_vi,
-                    "content_zh": c_zh,
-                    "solution_vi": s_vi,
-                    "solution_zh": s_zh,
-                    "estimated_time": est_time,
-                    "status": "Đang sửa"
-                }
-                supabase.table("repair_reports").insert(data).execute()
-                st.success("Đã lưu báo cáo thành công!")
-                st.rerun()
+    /* Bảng dữ liệu tiến độ */
+    .custom-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        background-color: #ffffff;
+    }
+    .custom-table th {
+        background-color: #f1f5f9;
+        color: #1e293b;
+        border: 1px solid #cbd5e1;
+        padding: 8px 4px;
+        text-align: center;
+        font-weight: bold;
+        line-height: 1.3;
+    }
+    .custom-table td {
+        border: 1px solid #cbd5e1;
+        padding: 8px 6px;
+        text-align: center;
+        vertical-align: middle;
+        line-height: 1.3;
+    }
+    .text-zh {
+        color: #d97706;
+        font-size: 12px;
+        display: block;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# Hiển thị danh sách báo cáo
-st.write("---")
-st.subheader("📋 Danh Sách Báo Cáo Tiến Độ / 进度汇报列表")
+# ---------------------------------------------------------
+# KHUNG NHẬP BÁO CÁO (FORM)
+# ---------------------------------------------------------
+st.text_input("Tên / Mã Máy (设备名称/编号)", key="input_machine", placeholder="Nhập tên máy...")
 
-res = supabase.table("repair_reports").select("*").order("id", desc=True).execute()
-reports = res.data
+st.markdown("**Nội Dung Sửa Chữa / 维修内容:**")
+c_vi = st.text_area("", key="input_c_vi", placeholder="Nhập nội dung hư hỏng, sự cố...", height=80, label_visibility="collapsed")
+c_zh = st.text_input("Nội dung (Tiếng Trung - 中文)", key="input_c_zh", placeholder="Tự động hoặc nhập tiếng Trung...")
+
+st.markdown("**Giải Pháp + Quy Cách Linh Kiện / 解决方案+零件规格:**")
+s_vi = st.text_area("", key="input_s_vi", placeholder="Nhập phương án và quy cách linh kiện...", height=80, label_visibility="collapsed")
+s_zh = st.text_input("Giải pháp (Tiếng Trung - 中文)", key="input_s_zh", placeholder="Tự động hoặc nhập tiếng Trung...")
+
+st.markdown("**Thời Gian Dự Kiến Hoàn Thành / 预计完成时间:**")
+est_time = st.text_input("", key="input_est", placeholder="Ví dụ: 2 giờ, 17:00 ngày 03/09...", label_visibility="collapsed")
+
+# Hai nút bấm nằm ngang màu Xanh Dương & Xanh Lá
+col_btn1, col_btn2 = st.columns(2)
+
+with col_btn1:
+    if st.button("Thêm Báo Cáo / 添加汇报", type="primary", use_container_width=True):
+        machine = st.session_state.get("input_machine")
+        if not machine or not c_vi or not s_vi or not est_time:
+            st.warning("Vui lòng điền đầy đủ các thông tin!")
+        else:
+            data = {
+                "machine_name": machine,
+                "content_vi": c_vi,
+                "content_zh": c_zh,
+                "solution_vi": s_vi,
+                "solution_zh": s_zh,
+                "estimated_time": est_time,
+                "status": "Đang sửa"
+            }
+            supabase.table("repair_reports").insert(data).execute()
+            st.success("Đã thêm báo cáo thành công!")
+            st.rerun()
+
+with col_btn2:
+    st.button("Tải Hình Báo Cáo / 下载图片", use_container_width=True)
+
+# ---------------------------------------------------------
+# BẢNG TIẾN ĐỘ SỬA CHỮA (TƯƠNG THÍCH HOÀN HẢO THEO ẢNH)
+# ---------------------------------------------------------
+st.markdown('<div class="table-title">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
+
+try:
+    res = supabase.table("repair_reports").select("*").order("id", desc=True).execute()
+    reports = res.data
+except Exception:
+    reports = []
 
 if not reports:
     st.info("Chưa có dữ liệu báo cáo nào.")
 else:
-    for row in reports:
-        is_done = row.get("status") == "Hoàn thành"
-        bg_color = "#d4edda" if is_done else "#ffffff"
-        border_color = "#28a745" if is_done else "#cccccc"
-        status_text = "✓ ĐÃ HOÀN THÀNH / 已完成" if is_done else "⏳ ĐANG SỬA CHỮA / 维修中"
-
-        st.markdown(f"""
-        <div style="background-color: {bg_color}; border: 2px solid {border_color}; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
-            <div style="display:flex; justify-content:space-between;">
-                <h3 style="margin:0; color:#0056b3;">🔧 Máy: {row['machine_name']}</h3>
-                <span style="font-weight:bold; color: {'green' if is_done else 'red'};">{status_text}</span>
-            </div>
-            <small>⏱ Thời gian bắt đầu báo: {row['created_at'][:16].replace('T', ' ')}</small>
-            <hr style="margin:8px 0;">
-            <p style="margin:5px 0;"><b>1. Nội dung sửa chữa / 维修内容:</b><br>
-            {row['content_vi']}<br>
-            <span style="color:#d9534f; font-weight:500;">{row.get('content_zh') or ''}</span></p>
-            
-            <p style="margin:5px 0;"><b>2. Giải pháp + Quy cách linh kiện / 解决方案+零件规格:</b><br>
-            {row['solution_vi']}<br>
-            <span style="color:#d9534f; font-weight:500;">{row.get('solution_zh') or ''}</span></p>
-            
-            <p style="margin:5px 0;"><b>3. Dự kiến hoàn thành / 预计完成时间:</b> {row['estimated_time']}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        col_act1, col_act2 = st.columns([2, 1])
-        with col_act1:
-            if not is_done:
-                pwd = st.text_input("Mật khẩu xác nhận (230):", type="password", key=f"pwd_{row['id']}")
-                if st.button("✔ Tích hoàn thành", key=f"done_{row['id']}"):
-                    if pwd == "230":
-                        supabase.table("repair_reports").update({"status": "Hoàn thành"}).eq("id", row["id"]).execute()
-                        st.success("Đã chuyển trạng thái hoàn thành!")
-                        st.rerun()
-                    else:
-                        st.error("Mật khẩu không đúng!")
-        with col_act2:
-            if st.button("🗑 Xóa báo cáo", key=f"del_{row['id']}"):
-                supabase.table("repair_reports").delete().eq("id", row["id"]).execute()
-                st.rerun()
+    # Cấu trúc bảng HTML khớp với định dạng hiển thị trong ảnh
+    html_code = """
+    <table class="custom-table">
+        <thead>
+            <tr>
+                <th style="width: 8%;">STT<br><span style="font-weight:normal;">序号</span></th>
+                <th style="width: 12%;">Máy<br><span style="font-weight:normal;">设备</span></th>
+                <th style="width: 15%;">Thời Gian Bắt Đầu<br><span style="font-weight:normal;">开始时间</span></th>
+                <th style="width: 25%;">Nội Dung<br><span style="font-weight:normal;">内容</span></th>
+                <th style="width: 25%;">Giải Pháp + Linh Kiện<br><span style="font-weight:normal;">解决方案+规格</span></th>
+                <th style="width: 15%;">Thời Gian Dự Kiến<br><span style="font-weight:normal;">预计时间</span></th>
+            </tr>
+        </thead>
+        <tbody>
+    """
+    
+    for idx, row in enumerate(reports, 1):
+        created_at = row.get("created_at", "")[:16].replace("T", " ")
+        c_zh_text = f'<span class="text-zh">{row.get("content_zh")}</span>' if row.get("content_zh") else ""
+        s_zh_text = f'<span class="text-zh">{row.get("solution_zh")}</span>' if row.get("solution_zh") else ""
+        
+        html_code += f"""
+        <tr>
+            <td><b>{idx}</b></td>
+            <td><b>{row.get('machine_name')}</b></td>
+            <td style="font-size: 11px;">{created_at}</td>
+            <td style="text-align: left;">{row.get('content_vi')}{c_zh_text}</td>
+            <td style="text-align: left;">{row.get('solution_vi')}{s_zh_text}</td>
+            <td>{row.get('estimated_time')}</td>
+        </tr>
+        """
+        
+    html_code += "</tbody></table>"
+    st.markdown(html_code, unsafe_allow_html=True)

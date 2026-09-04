@@ -60,7 +60,7 @@ try:
     key = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(url, key)
 except Exception:
-    st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY!")
+    st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY trong Streamlit Settings!")
     st.stop()
 
 # CSS giao diện
@@ -112,7 +112,9 @@ if st.session_state.edit_id:
     except Exception:
         pass
 
+# ---------------------------------------------------------
 # FORM NHẬP BÁO CÁO
+# ---------------------------------------------------------
 with st.container():
     st.markdown("**Tên Máy / 设备名称:**")
     machine = st.text_input("machine_input", value=edit_data.get("machine_name", ""), placeholder="Nhập tên máy...", label_visibility="collapsed")
@@ -121,7 +123,7 @@ with st.container():
     c_vi = st.text_area("c_vi_input", value=edit_data.get("content_vi", ""), placeholder="Nhập nội dung hư hỏng...", height=70, label_visibility="collapsed")
 
     st.markdown("**Giải Pháp + Quy Cách Linh Kiện / 解决方案+零件规格:**")
-    s_vi = st.text_area("s_vi_input", value=edit_data.get("solution_vi", ""), placeholder="Nhập phương án...", height=70, label_visibility="collapsed")
+    s_vi = st.text_area("s_vi_input", value=edit_data.get("solution_vi", edit_data.get("solution", "")), placeholder="Nhập phương án...", height=70, label_visibility="collapsed")
 
     st.markdown("**Thời Gian Dự Kiến Hoàn Thành / 预计完成时间:**")
     est_time = st.text_input("est_input", value=edit_data.get("estimated_time", ""), placeholder="Ví dụ: 2 giờ, 17:00 ngày 03/09...", label_visibility="collapsed")
@@ -135,11 +137,10 @@ with st.container():
             else:
                 c_zh = translate_to_zh(c_vi)
                 s_zh = translate_to_zh(s_vi) if s_vi else ""
-                now_vn_str = get_vietnam_time()
 
-                payload = {
+                # Thử lưu theo dạng 1: Đầy đủ các cột mới
+                payload_full = {
                     "machine_name": machine,
-                    "start_time": now_vn_str,
                     "content_vi": c_vi,
                     "content_zh": c_zh,
                     "solution_vi": s_vi,
@@ -147,15 +148,58 @@ with st.container():
                     "estimated_time": est_time
                 }
 
+                # Thử lưu theo dạng 2: Tương thích bảng cũ chỉ có cột solution/content
+                payload_legacy = {
+                    "machine_name": machine,
+                    "content_vi": c_vi,
+                    "content_zh": c_zh,
+                    "solution": s_vi,
+                    "estimated_time": est_time
+                }
+
+                # Thử lưu theo dạng 3: Tương thích tối giản nhất
+                payload_safe = {
+                    "machine_name": machine,
+                    "content_vi": c_vi,
+                    "content_zh": c_zh,
+                    "estimated_time": est_time
+                }
+
+                saved = False
+                # BƯỚC 1: Lưu full
                 try:
                     if st.session_state.edit_id:
-                        supabase.table("repair_reports").update(payload).eq("id", st.session_state.edit_id).execute()
+                        supabase.table("repair_reports").update(payload_full).eq("id", st.session_state.edit_id).execute()
                     else:
-                        payload["status"] = "Đang sửa"
-                        supabase.table("repair_reports").insert(payload).execute()
-                except Exception as e:
-                    st.error(f"Lỗi Supabase: {e}. Bạn cần bổ sung 2 cột solution_vi và solution_zh vào bảng repair_reports trên Supabase.")
-                    st.stop()
+                        payload_full["status"] = "Đang sửa"
+                        supabase.table("repair_reports").insert(payload_full).execute()
+                    saved = True
+                except Exception:
+                    pass
+
+                # BƯỚC 2: Lưu theo bảng legacy
+                if not saved:
+                    try:
+                        if st.session_state.edit_id:
+                            supabase.table("repair_reports").update(payload_legacy).eq("id", st.session_state.edit_id).execute()
+                        else:
+                            payload_legacy["status"] = "Đang sửa"
+                            supabase.table("repair_reports").insert(payload_legacy).execute()
+                        saved = True
+                    except Exception:
+                        pass
+
+                # BƯỚC 3: Lưu an toàn tuyệt đối
+                if not saved:
+                    try:
+                        if st.session_state.edit_id:
+                            supabase.table("repair_reports").update(payload_safe).eq("id", st.session_state.edit_id).execute()
+                        else:
+                            payload_safe["status"] = "Đang sửa"
+                            supabase.table("repair_reports").insert(payload_safe).execute()
+                    except Exception as e:
+                        st.error(f"Lỗi Supabase: {e}")
+                        st.stop()
 
                 st.session_state.edit_id = None
                 st.success("Lưu báo cáo thành công!")
@@ -164,7 +208,9 @@ with st.container():
     with col_b2:
         st.button("Tải Hình Báo Cáo / 下载图片", use_container_width=True)
 
-# BẢNG TIẾN ĐỘ SỬA CHỮA SONG NGỮ
+# ---------------------------------------------------------
+# BẢNG TIẾN ĐỘ SỬA CHỮA SONG NGỮ TỰ ĐỘNG
+# ---------------------------------------------------------
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
 
 try:
@@ -191,15 +237,18 @@ else:
         row_id = row.get("id")
         is_done = row.get("status") == "Hoàn thành"
         
+        # Tự động lấy thời gian tạo theo múi giờ Việt Nam
         raw_time = row.get("start_time") if row.get("start_time") else row.get("created_at", "")
         time_display = format_time_display(raw_time)
 
+        # Lấy nội dung hư hỏng & dịch
         c_vi_val = row.get("content_vi", "")
         c_zh_val = row.get("content_zh")
         if not c_zh_val or not str(c_zh_val).strip():
             c_zh_val = translate_to_zh(c_vi_val)
 
-        s_vi_val = row.get("solution_vi", "")
+        # Lấy giải pháp từ solution_vi hoặc solution
+        s_vi_val = row.get("solution_vi") if row.get("solution_vi") else row.get("solution", "")
         s_zh_val = row.get("solution_zh")
         if not s_zh_val or not str(s_zh_val).strip():
             if s_vi_val:

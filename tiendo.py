@@ -2,6 +2,7 @@ import json
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
+import pandas as pd
 import streamlit as st
 from supabase import Client, create_client
 
@@ -65,43 +66,36 @@ except Exception:
     st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY!")
     st.stop()
 
-# CSS ÉP GIAO DIỆN HÀNG NGANG CHUẨN ĐIỆN THOẠI (KHÔNG LỘ MÃ HTML)
+# CSS tối ưu cho điện thoại 9:16
 st.markdown("""
 <style>
     .main-title {
         text-align: center;
         color: #1e40af;
         font-weight: bold;
-        font-size: 22px;
-        margin-bottom: 5px;
+        font-size: 20px;
+        margin-bottom: 2px;
     }
     .sub-title {
         text-align: center;
         color: #475569;
         font-size: 13px;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
     }
     .table-header {
         text-align: center;
         font-weight: bold;
-        font-size: 18px;
+        font-size: 16px;
         color: #334155;
-        margin-top: 25px;
-        margin-bottom: 15px;
+        margin-top: 15px;
+        margin-bottom: 10px;
     }
-    .text-zh {
-        color: #d97706;
-        font-size: 12px;
-        font-weight: 500;
-        display: block;
-        margin-top: 3px;
-    }
-
-    /* Bắt buộc Streamlit columns không bị bẻ dòng trên điện thoại */
-    [data-testid="stHorizontalBlock"] {
-        flex-wrap: nowrap !important;
-        overflow-x: auto !important;
-        min-width: 750px !important;
+    /* Co gọn khoảng trống trên điện thoại */
+    .block-container {
+        padding-top: 1.5rem !important;
+        padding-bottom: 1rem !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -127,10 +121,10 @@ with st.container():
     machine = st.text_input("machine_input", value=edit_data.get("machine_name", ""), placeholder="Nhập tên máy...", label_visibility="collapsed")
 
     st.markdown("**Nội Dung Sửa Chữa / 维修内容:**")
-    c_vi = st.text_area("c_vi_input", value=edit_data.get("content_vi", ""), placeholder="Nhập nội dung hư hỏng...", height=70, label_visibility="collapsed")
+    c_vi = st.text_area("c_vi_input", value=edit_data.get("content_vi", ""), placeholder="Nhập nội dung hư hỏng...", height=60, label_visibility="collapsed")
 
     st.markdown("**Giải Pháp + Quy Cách Linh Kiện / 解决方案+零件规格:**")
-    s_vi = st.text_area("s_vi_input", value=edit_data.get("solution_vi", edit_data.get("solution", "")), placeholder="Nhập phương án...", height=70, label_visibility="collapsed")
+    s_vi = st.text_area("s_vi_input", value=edit_data.get("solution_vi", edit_data.get("solution", "")), placeholder="Nhập phương án...", height=60, label_visibility="collapsed")
 
     st.markdown("**Thời Gian Dự Kiến Hoàn Thành / 预计完成时间:**")
     est_time = st.text_input("est_input", value=edit_data.get("estimated_time", ""), placeholder="Ví dụ: 2 giờ, 17:00 ngày 03/09...", label_visibility="collapsed")
@@ -192,7 +186,7 @@ with st.container():
     with col_b2:
         st.button("Tải Báo Cáo / 下载图片", use_container_width=True)
 
-# BẢNG TIẾN ĐỘ SỬA CHỮA (XUẤT RA DẠNG NGUYÊN BẢN CỦA STREAMLIT)
+# BẢNG TIẾN ĐỘ TƯƠNG THÍCH ĐIỆN THOẠI 9:16
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
 
 try:
@@ -204,84 +198,80 @@ except Exception:
 if not reports:
     st.info("Chưa có dữ liệu báo cáo nào.")
 else:
-    # Tiêu đề bảng
-    h_col1, h_col2, h_col3, h_col4, h_col5, h_col6, h_col7 = st.columns([0.6, 1.2, 1.5, 2.5, 2.5, 1.5, 1.8])
-    with h_col1: st.markdown("**STT<br><span style='font-size:11px;'>序号</span>**", unsafe_allow_html=True)
-    with h_col2: st.markdown("**Máy<br><span style='font-size:11px;'>设备</span>**", unsafe_allow_html=True)
-    with h_col3: st.markdown("**Thời Gian Bắt Đầu<br><span style='font-size:11px;'>开始时间</span>**", unsafe_allow_html=True)
-    with h_col4: st.markdown("**Nội Dung<br><span style='font-size:11px;'>内容</span>**", unsafe_allow_html=True)
-    with h_col5: st.markdown("**Giải Pháp + Linh Kiện<br><span style='font-size:11px;'>解决方案+规格</span>**", unsafe_allow_html=True)
-    with h_col6: st.markdown("**Thời Gian Dự Kiến<br><span style='font-size:11px;'>预计时间</span>**", unsafe_allow_html=True)
-    with h_col7: st.markdown("**Thao Tác<br><span style='font-size:11px;'>操作</span>**", unsafe_allow_html=True)
-
-    st.divider()
-
-    # Dữ liệu bảng
+    table_data = []
     for idx, row in enumerate(reports, 1):
-        row_id = row.get("id")
         is_done = row.get("status") == "Hoàn thành"
         time_display = convert_utc_to_vn(row.get("created_at", ""))
 
         c_vi_val = row.get("content_vi", "")
         c_zh_val = row.get("content_zh") if row.get("content_zh") else translate_to_zh(c_vi_val)
+        full_content = f"{c_vi_val}\n({c_zh_val})" if c_zh_val else c_vi_val
 
         s_vi_val = row.get("solution_vi") if row.get("solution_vi") else row.get("solution", "")
         s_zh_val = row.get("solution_zh") if row.get("solution_zh") else translate_to_zh(s_vi_val)
+        full_solution = f"{s_vi_val}\n({s_zh_val})" if s_zh_val else s_vi_val
 
-        c1, c2, c3, c4, c5, c6, c7 = st.columns([0.6, 1.2, 1.5, 2.5, 2.5, 1.5, 1.8])
+        status_str = "🟢 Đã xong / 已完成" if is_done else "🟡 Đang sửa / 维修中"
 
-        with c1: st.write(f"**{idx}**")
-        with c2: st.write(f"**{row.get('machine_name')}**")
-        with c3: st.caption(time_display)
-        
-        with c4:
-            st.write(c_vi_val)
-            if c_zh_val:
-                st.markdown(f'<span class="text-zh">{c_zh_val}</span>', unsafe_allow_html=True)
-                
-        with c5:
-            st.write(s_vi_val if s_vi_val else "")
-            if s_zh_val:
-                st.markdown(f'<span class="text-zh">{s_zh_val}</span>', unsafe_allow_html=True)
-                
-        with c6:
-            st.write(row.get("estimated_time"))
-            if is_done:
-                st.markdown("🟢 **Đã xong / 已完成**")
+        table_data.append({
+            "STT / 序号": idx,
+            "Máy / 设备": row.get("machine_name", ""),
+            "Thời Gian Bắt Đầu / 开始时间": time_display,
+            "Nội Dung Sửa Chữa / 维修内容": full_content,
+            "Giải Pháp / 解决方案": full_solution,
+            "Dự Kiến / 预计完成": row.get("estimated_time", ""),
+            "Trạng Thái / 状态": status_str
+        })
 
-        with c7:
-            act_col1, act_col2, act_col3 = st.columns(3)
-            
-            with act_col1:
-                if st.button("✏️", key=f"edit_{row_id}", help="Sửa"):
-                    st.session_state.edit_id = row_id
+    df = pd.DataFrame(table_data)
+    
+    # Hiển thị bảng dạng Dataframe hỗ trợ cuộn ngang chuẩn mobile
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True,
+        height=300
+    )
+
+    # Khung quản lý bản ghi bên dưới
+    st.markdown("**Quản lý bản ghi / 操作:**")
+    report_options = {f"STT {i} - {r.get('machine_name')}": r.get('id') for i, r in enumerate(reports, 1)}
+    selected_option = st.selectbox("Chọn máy thao tác:", list(report_options.keys()))
+    selected_id = report_options[selected_option]
+
+    selected_row = next((r for r in reports if r.get('id') == selected_id), None)
+    is_selected_done = selected_row.get("status") == "Hoàn thành" if selected_row else False
+
+    c_act1, c_act2, c_act3 = st.columns(3)
+    with c_act1:
+        if st.button("✏️ Sửa", use_container_width=True):
+            st.session_state.edit_id = selected_id
+            st.rerun()
+
+    with c_act2:
+        check_label = "⬜ Chưa xong" if is_selected_done else "✅ Hoàn thành"
+        if st.button(check_label, use_container_width=True):
+            new_status = "Đang sửa" if is_selected_done else "Hoàn thành"
+            supabase.table("repair_reports").update({"status": new_status}).eq("id", selected_id).execute()
+            st.rerun()
+
+    with c_act3:
+        if st.button("🗑️ Xóa", use_container_width=True):
+            st.session_state["confirm_del_id"] = selected_id
+
+    if st.session_state.get("confirm_del_id") == selected_id:
+        pwd = st.text_input("Mật khẩu xóa (230):", type="password", key="del_pwd_input")
+        c_p1, c_p2 = st.columns(2)
+        with c_p1:
+            if st.button("OK Xóa", type="primary", use_container_width=True):
+                if pwd == "230":
+                    supabase.table("repair_reports").delete().eq("id", selected_id).execute()
+                    st.session_state.pop("confirm_del_id", None)
+                    st.success("Đã xóa!")
                     st.rerun()
-
-            with act_col2:
-                check_icon = "✅" if is_done else "⬜"
-                if st.button(check_icon, key=f"done_{row_id}", help="Tích hoàn thành"):
-                    new_status = "Đang sửa" if is_done else "Hoàn thành"
-                    supabase.table("repair_reports").update({"status": new_status}).eq("id", row_id).execute()
-                    st.rerun()
-
-            with act_col3:
-                if st.button("🗑️", key=f"del_{row_id}", help="Xóa"):
-                    st.session_state[f"confirm_del_{row_id}"] = True
-
-            if st.session_state.get(f"confirm_del_{row_id}"):
-                pwd = st.text_input("Mật khẩu (230):", type="password", key=f"pwd_{row_id}")
-                col_pass1, col_pass2 = st.columns(2)
-                with col_pass1:
-                    if st.button("OK", key=f"ok_del_{row_id}"):
-                        if pwd == "230":
-                            supabase.table("repair_reports").delete().eq("id", row_id).execute()
-                            st.session_state.pop(f"confirm_del_{row_id}", None)
-                            st.success("Đã xóa!")
-                            st.rerun()
-                        else:
-                            st.error("Sai MK!")
-                with col_pass2:
-                    if st.button("Hủy", key=f"cancel_del_{row_id}"):
-                        st.session_state.pop(f"confirm_del_{row_id}", None)
-                        st.rerun()
-        st.divider()
+                else:
+                    st.error("Sai MK!")
+        with c_p2:
+            if st.button("Hủy", use_container_width=True):
+                st.session_state.pop("confirm_del_id", None)
+                st.rerun()

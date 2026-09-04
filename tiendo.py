@@ -1,13 +1,30 @@
 import streamlit as st
 from datetime import datetime
-from googletrans import Translator
+import urllib.parse
+import urllib.request
+import json
 from supabase import create_client, Client
 
 # Cấu hình giao diện Streamlit
 st.set_page_config(page_title="BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC", layout="wide")
 
-# Khởi tạo dịch tự động
-translator = Translator()
+# Hàm tự động dịch Việt -> Trung (Không cần thư viện ngoài)
+def translate_to_zh(text):
+    if not text:
+        return ""
+    try:
+        url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=vi&tl=zh-CN&dt=t&q=" + urllib.parse.quote(text)
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        response = urllib.request.urlopen(req)
+        data = json.loads(response.read().decode('utf-8'))
+        
+        translated_text = ""
+        for item in data[0]:
+            if item[0]:
+                translated_text += item[0]
+        return translated_text
+    except Exception:
+        return ""
 
 # Kết nối Supabase
 try:
@@ -66,7 +83,7 @@ if st.session_state.edit_id:
         pass
 
 # ---------------------------------------------------------
-# FORM NHẬP BÁO CÁO (CHỈ NHẬP TIẾNG VIỆT)
+# FORM NHẬP BÁO CÁO
 # ---------------------------------------------------------
 with st.container():
     st.markdown("**Tên Máy / 设备名称:**")
@@ -88,18 +105,9 @@ with st.container():
             if not machine or not c_vi or not s_vi or not est_time:
                 st.warning("Vui lòng điền đầy đủ các thông tin!")
             else:
-                # Tự động dịch tiếng Việt sang tiếng Trung (kèm Pinyin)
-                try:
-                    trans_c = translator.translate(c_vi, src='vi', dest='zh-cn')
-                    c_zh = f"{trans_c.text} {trans_c.pronunciation if trans_c.pronunciation else ''}".strip()
-                except Exception:
-                    c_zh = ""
-
-                try:
-                    trans_s = translator.translate(s_vi, src='vi', dest='zh-cn')
-                    s_zh = f"{trans_s.text} {trans_s.pronunciation if trans_s.pronunciation else ''}".strip()
-                except Exception:
-                    s_zh = ""
+                # Tự động dịch nội dung và giải pháp sang Tiếng Trung
+                c_zh = translate_to_zh(c_vi)
+                s_zh = translate_to_zh(s_vi)
 
                 payload = {
                     "machine_name": machine,

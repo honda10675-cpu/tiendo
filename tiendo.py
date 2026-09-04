@@ -7,12 +7,22 @@ from supabase import create_client, Client
 
 st.set_page_config(page_title="BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC", layout="wide")
 
-# Hàm làm tròn thời gian đến mốc 30 phút gần nhất
+# Hàm tự động làm tròn thời gian đến mốc 30 phút gần nhất (VD: 17:42 -> 17:30)
+def get_rounded_time():
+    now = datetime.now()
+    minute = now.minute
+    if minute < 15:
+        now = now.replace(minute=0, second=0, microsecond=0)
+    elif minute < 45:
+        now = now.replace(minute=30, second=0, microsecond=0)
+    else:
+        now = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+    return now.strftime("%Y-%m-%d %H:%M")
+
 def round_to_30min(dt_str):
     if not dt_str:
         return ""
     try:
-        # Nếu chuỗi có định dạng YYYY-MM-DD HH:MM
         clean_str = dt_str.replace("T", " ")[:16]
         dt = datetime.strptime(clean_str, "%Y-%m-%d %H:%M")
         minute = dt.minute
@@ -26,7 +36,7 @@ def round_to_30min(dt_str):
     except Exception:
         return dt_str
 
-# Hàm dịch Việt -> Trung tự động
+# Hàm dịch tự động Việt -> Trung
 def translate_to_zh(text):
     if not text:
         return ""
@@ -53,7 +63,7 @@ except Exception:
     st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY trong Streamlit Settings!")
     st.stop()
 
-# Định dạng CSS giao diện
+# Định dạng CSS chuẩn giao diện
 st.markdown("""
 <style>
     .main-title {
@@ -103,37 +113,42 @@ if st.session_state.edit_id:
         pass
 
 # ---------------------------------------------------------
-# KHUNG NHẬP BÁO CÁO (NỘI DUNG CHUNG 1 Ô)
+# FORM NHẬP BÁO CÁO (CHUẨN GIAO DIỆN)
 # ---------------------------------------------------------
 with st.container():
     st.markdown("**Tên Máy / 设备名称:**")
     machine = st.text_input("machine_input", value=edit_data.get("machine_name", ""), placeholder="Nhập tên máy...", label_visibility="collapsed")
 
-    st.markdown("**Thời Gian Bắt Đầu (Làm tròn 30 phút) / 开始时间:**")
-    default_time = edit_data.get("start_time") if edit_data.get("start_time") else datetime.now().strftime("%Y-%m-%d %H:%M")
-    start_time = st.text_input("start_time_input", value=round_to_30min(default_time), label_visibility="collapsed")
+    st.markdown("**Nội Dung Sửa Chữa / 维修内容:**")
+    c_vi = st.text_area("c_vi_input", value=edit_data.get("content_vi", ""), placeholder="Nhập nội dung hư hỏng...", height=70, label_visibility="collapsed")
 
-    st.markdown("**Nội Dung Sửa Chữa & Giải Pháp / 维修内容与解决方案:**")
-    c_vi = st.text_area("c_vi_input", value=edit_data.get("content_vi", ""), placeholder="Nhập nội dung hư hỏng và phương án sửa chữa...", height=90, label_visibility="collapsed")
+    st.markdown("**Giải Pháp + Quy Cách Linh Kiện / 解决方案+零件规格:**")
+    s_vi = st.text_area("s_vi_input", value=edit_data.get("solution_vi", ""), placeholder="Nhập phương án...", height=70, label_visibility="collapsed")
 
     st.markdown("**Thời Gian Dự Kiến Hoàn Thành / 预计完成时间:**")
-    est_time = st.text_input("est_input", value=edit_data.get("estimated_time", ""), placeholder="Ví dụ: 17:00 ngày 06/09/2026...", label_visibility="collapsed")
+    est_time = st.text_input("est_input", value=edit_data.get("estimated_time", ""), placeholder="Ví dụ: 2 giờ, 17:00 ngày 03/09...", label_visibility="collapsed")
 
     col_b1, col_b2 = st.columns(2)
     with col_b1:
-        btn_label = "Cập Nhật Báo Cáo / 更新汇报" if st.session_state.edit_id else "Thêm Báo Cáo / 添加汇报"
+        btn_label = "Thêm Báo Cáo / 添加汇报" if not st.session_state.edit_id else "Cập Nhật Báo Cáo / 更新汇报"
         if st.button(btn_label, type="primary", use_container_width=True):
             if not machine or not c_vi or not est_time:
-                st.warning("Vui lòng nhập đủ thông tin Máy, Nội dung và Thời gian dự kiến!")
+                st.warning("Vui lòng điền đầy đủ các thông tin!")
             else:
+                # Tự động dịch Nội Dung và Giải Pháp sang Tiếng Trung
                 c_zh = translate_to_zh(c_vi)
+                s_zh = translate_to_zh(s_vi) if s_vi else ""
+
+                # Tự động lấy mốc giờ thực tế làm tròn 30 phút
+                start_time_auto = get_rounded_time()
+
                 payload = {
                     "machine_name": machine,
-                    "start_time": start_time,
+                    "start_time": start_time_auto,
                     "content_vi": c_vi,
                     "content_zh": c_zh,
-                    "solution_vi": "",
-                    "solution_zh": "",
+                    "solution_vi": s_vi,
+                    "solution_zh": s_zh,
                     "estimated_time": est_time
                 }
 
@@ -144,14 +159,14 @@ with st.container():
                 else:
                     payload["status"] = "Đang sửa"
                     supabase.table("repair_reports").insert(payload).execute()
-                    st.success("Đã thêm báo cáo!")
+                    st.success("Đã thêm báo cáo mới!")
                 st.rerun()
 
     with col_b2:
         st.button("Tải Hình Báo Cáo / 下载图片", use_container_width=True)
 
 # ---------------------------------------------------------
-# BẢNG TIẾN ĐỘ SỬA CHỮA (SONG NGỮ + TỰ ĐỘNG XUỐNG DÒNG)
+# BẢNG TIẾN ĐỘ SỬA CHỮA SONG NGỮ (TIẾNG VIỆT TRÊN, TIẾNG TRUNG DƯỚI)
 # ---------------------------------------------------------
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
 
@@ -164,13 +179,15 @@ except Exception:
 if not reports:
     st.info("Chưa có dữ liệu báo cáo nào.")
 else:
-    h_col1, h_col2, h_col3, h_col4, h_col5, h_col6 = st.columns([0.6, 1.2, 1.8, 3.8, 1.8, 1.8])
+    # Tỉ lệ các cột khớp hình ảnh giao diện mẫu
+    h_col1, h_col2, h_col3, h_col4, h_col5, h_col6, h_col7 = st.columns([0.6, 1.2, 1.5, 2.5, 2.5, 1.5, 1.8])
     with h_col1: st.markdown("**STT<br><span style='font-size:11px;'>序号</span>**", unsafe_allow_html=True)
     with h_col2: st.markdown("**Máy<br><span style='font-size:11px;'>设备</span>**", unsafe_allow_html=True)
-    with h_col3: st.markdown("**Bắt Đầu<br><span style='font-size:11px;'>开始时间</span>**", unsafe_allow_html=True)
-    with h_col4: st.markdown("**Nội Dung & Giải Pháp<br><span style='font-size:11px;'>内容与解决方案</span>**", unsafe_allow_html=True)
-    with h_col5: st.markdown("**Dự Kiến<br><span style='font-size:11px;'>预计时间</span>**", unsafe_allow_html=True)
-    with h_col6: st.markdown("**Thao Tác<br><span style='font-size:11px;'>操作</span>**", unsafe_allow_html=True)
+    with h_col3: st.markdown("**Thời Gian Bắt Đầu<br><span style='font-size:11px;'>开始时间</span>**", unsafe_allow_html=True)
+    with h_col4: st.markdown("**Nội Dung<br><span style='font-size:11px;'>内容</span>**", unsafe_allow_html=True)
+    with h_col5: st.markdown("**Giải Pháp + Linh Kiện<br><span style='font-size:11px;'>解决方案+规格</span>**", unsafe_allow_html=True)
+    with h_col6: st.markdown("**Thời Gian Dự Kiến<br><span style='font-size:11px;'>预计时间</span>**", unsafe_allow_html=True)
+    with h_col7: st.markdown("**Thao Tác<br><span style='font-size:11px;'>操作</span>**", unsafe_allow_html=True)
 
     st.divider()
 
@@ -178,31 +195,42 @@ else:
         row_id = row.get("id")
         is_done = row.get("status") == "Hoàn thành"
         
-        # Tự động làm tròn lại các mốc giờ cũ (17:42 -> 17:30)
+        # Tự động làm tròn lại mốc giờ 30 phút
         raw_time = row.get("start_time") if row.get("start_time") else row.get("created_at", "")
         time_display = round_to_30min(raw_time)
 
-        # Tự động dịch bổ sung Tiếng Trung nếu dòng cũ chưa có
-        content_vi = row.get("content_vi", "")
-        content_zh = row.get("content_zh", "")
-        if content_vi and not content_zh:
-            content_zh = translate_to_zh(content_vi)
+        # Xử lý dịch tự động Tiếng Trung nếu dòng cũ chưa có
+        c_vi_val = row.get("content_vi", "")
+        c_zh_val = row.get("content_zh") if row.get("content_zh") else translate_to_zh(c_vi_val)
+        
+        s_vi_val = row.get("solution_vi", "")
+        s_zh_val = row.get("solution_zh") if row.get("solution_zh") else translate_to_zh(s_vi_val)
 
-        c1, c2, c3, c4, c5, c6 = st.columns([0.6, 1.2, 1.8, 3.8, 1.8, 1.8])
+        c1, c2, c3, c4, c5, c6, c7 = st.columns([0.6, 1.2, 1.5, 2.5, 2.5, 1.5, 1.8])
 
         with c1: st.write(f"**{idx}**")
         with c2: st.write(f"**{row.get('machine_name')}**")
         with c3: st.caption(time_display)
+        
+        # Ô Nội Dung: Tiếng Việt ở trên, Tiếng Trung xuống dòng ở dưới
         with c4:
-            st.write(content_vi)
-            if content_zh:
-                st.markdown(f'<span class="text-zh">{content_zh}</span>', unsafe_allow_html=True)
+            st.write(c_vi_val)
+            if c_zh_val:
+                st.markdown(f'<span class="text-zh">{c_zh_val}</span>', unsafe_allow_html=True)
+                
+        # Ô Giải Pháp: Tiếng Việt ở trên, Tiếng Trung xuống dòng ở dưới
         with c5:
+            st.write(s_vi_val)
+            if s_zh_val:
+                st.markdown(f'<span class="text-zh">{s_zh_val}</span>', unsafe_allow_html=True)
+                
+        with c6:
             st.write(row.get("estimated_time"))
             if is_done:
                 st.markdown("🟢 **Đã xong / 已完成**")
 
-        with c6:
+        # Nút thao tác
+        with c7:
             act_col1, act_col2, act_col3 = st.columns(3)
             
             with act_col1:

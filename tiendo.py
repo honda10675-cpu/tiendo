@@ -7,7 +7,7 @@ from supabase import create_client, Client
 
 st.set_page_config(page_title="BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC", layout="wide")
 
-# 1. Bổ sung thư viện dịch ổn định
+# Bổ sung thư viện dịch ổn định
 try:
     from deep_translator import GoogleTranslator
     HAS_DEEP = True
@@ -43,12 +43,10 @@ def round_to_30min(dt_str):
     except Exception:
         return dt_str
 
-# Hàm dịch Việt -> Trung nhiều lớp (đảm bảo không bao giờ lỗi)
+# Hàm dịch Việt -> Trung tự động
 def translate_to_zh(text):
     if not text or not text.strip():
         return ""
-    
-    # Cách 1: Dùng deep_translator
     if HAS_DEEP:
         try:
             res = GoogleTranslator(source='vi', target='zh-CN').translate(text)
@@ -57,7 +55,6 @@ def translate_to_zh(text):
         except Exception:
             pass
 
-    # Cách 2: Dùng Google Free Endpoint dự phòng
     try:
         url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=vi&tl=zh-CN&dt=t&q={urllib.parse.quote(text)}"
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
@@ -84,7 +81,7 @@ except Exception:
     st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY trong Streamlit Settings!")
     st.stop()
 
-# CSS định dạng kiểu dáng chuẩn
+# Định dạng CSS giao diện
 st.markdown("""
 <style>
     .main-title {
@@ -170,21 +167,37 @@ with st.container():
                     "estimated_time": est_time
                 }
 
-                if st.session_state.edit_id:
-                    supabase.table("repair_reports").update(payload).eq("id", st.session_state.edit_id).execute()
-                    st.session_state.edit_id = None
-                    st.success("Đã cập nhật!")
-                else:
-                    payload["status"] = "Đang sửa"
-                    supabase.table("repair_reports").insert(payload).execute()
-                    st.success("Đã thêm báo cáo mới!")
+                # Thử lưu dữ liệu đầy đủ, nếu Supabase báo lỗi thiếu cột solution thì tự động hạ cấp xuống lưu tương thích
+                try:
+                    if st.session_state.edit_id:
+                        supabase.table("repair_reports").update(payload).eq("id", st.session_state.edit_id).execute()
+                    else:
+                        payload["status"] = "Đang sửa"
+                        supabase.table("repair_reports").insert(payload).execute()
+                except Exception:
+                    # Tương thích với database cũ không có cột solution_vi/solution_zh
+                    payload_fallback = {
+                        "machine_name": machine,
+                        "start_time": start_time_auto,
+                        "content_vi": c_vi + (f" | Giải pháp: {s_vi}" if s_vi else ""),
+                        "content_zh": c_zh + (f" | 方案: {s_zh}" if s_zh else ""),
+                        "estimated_time": est_time
+                    }
+                    if st.session_state.edit_id:
+                        supabase.table("repair_reports").update(payload_fallback).eq("id", st.session_state.edit_id).execute()
+                    else:
+                        payload_fallback["status"] = "Đang sửa"
+                        supabase.table("repair_reports").insert(payload_fallback).execute()
+
+                st.session_state.edit_id = None
+                st.success("Lưu báo cáo thành công!")
                 st.rerun()
 
     with col_b2:
         st.button("Tải Hình Báo Cáo / 下载图片", use_container_width=True)
 
 # ---------------------------------------------------------
-# BẢNG TIẾN ĐỘ SỬA CHỮA (TỰ ĐỘNG DỊCH BẢN GHI CŨ)
+# BẢNG TIẾN ĐỘ SỬA CHỮA SONG NGỮ
 # ---------------------------------------------------------
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
 
@@ -237,7 +250,7 @@ else:
                 st.markdown(f'<span class="text-zh">{c_zh_val}</span>', unsafe_allow_html=True)
                 
         with c5:
-            st.write(s_vi_val)
+            st.write(s_vi_val if s_vi_val else "-")
             if s_zh_val:
                 st.markdown(f'<span class="text-zh">{s_zh_val}</span>', unsafe_allow_html=True)
                 

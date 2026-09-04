@@ -7,7 +7,14 @@ from supabase import create_client, Client
 
 st.set_page_config(page_title="BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC", layout="wide")
 
-# Hàm tự động làm tròn thời gian đến mốc 30 phút gần nhất (VD: 17:42 -> 17:30)
+# 1. Bổ sung thư viện dịch ổn định
+try:
+    from deep_translator import GoogleTranslator
+    HAS_DEEP = True
+except ImportError:
+    HAS_DEEP = False
+
+# Hàm làm tròn giờ thực tế 30 phút
 def get_rounded_time():
     now = datetime.now()
     minute = now.minute
@@ -36,23 +43,37 @@ def round_to_30min(dt_str):
     except Exception:
         return dt_str
 
-# Hàm dịch tự động Việt -> Trung
+# Hàm dịch Việt -> Trung nhiều lớp (đảm bảo không bao giờ lỗi)
 def translate_to_zh(text):
-    if not text:
+    if not text or not text.strip():
         return ""
+    
+    # Cách 1: Dùng deep_translator
+    if HAS_DEEP:
+        try:
+            res = GoogleTranslator(source='vi', target='zh-CN').translate(text)
+            if res:
+                return res
+        except Exception:
+            pass
+
+    # Cách 2: Dùng Google Free Endpoint dự phòng
     try:
-        url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=vi&tl=zh-CN&dt=t&q=" + urllib.parse.quote(text)
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        response = urllib.request.urlopen(req)
+        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=vi&tl=zh-CN&dt=t&q={urllib.parse.quote(text)}"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+        response = urllib.request.urlopen(req, timeout=5)
         data = json.loads(response.read().decode('utf-8'))
         
         translated = ""
         for item in data[0]:
             if item[0]:
                 translated += item[0]
-        return translated
+        if translated:
+            return translated
     except Exception:
-        return ""
+        pass
+
+    return ""
 
 # Kết nối Supabase
 try:
@@ -63,7 +84,7 @@ except Exception:
     st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY trong Streamlit Settings!")
     st.stop()
 
-# Định dạng CSS chuẩn giao diện
+# CSS định dạng kiểu dáng chuẩn
 st.markdown("""
 <style>
     .main-title {
@@ -92,7 +113,7 @@ st.markdown("""
         font-size: 13px;
         font-weight: 500;
         display: block;
-        margin-top: 3px;
+        margin-top: 4px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -113,7 +134,7 @@ if st.session_state.edit_id:
         pass
 
 # ---------------------------------------------------------
-# FORM NHẬP BÁO CÁO (CHUẨN GIAO DIỆN)
+# FORM NHẬP BÁO CÁO
 # ---------------------------------------------------------
 with st.container():
     st.markdown("**Tên Máy / 设备名称:**")
@@ -135,11 +156,8 @@ with st.container():
             if not machine or not c_vi or not est_time:
                 st.warning("Vui lòng điền đầy đủ các thông tin!")
             else:
-                # Tự động dịch Nội Dung và Giải Pháp sang Tiếng Trung
                 c_zh = translate_to_zh(c_vi)
                 s_zh = translate_to_zh(s_vi) if s_vi else ""
-
-                # Tự động lấy mốc giờ thực tế làm tròn 30 phút
                 start_time_auto = get_rounded_time()
 
                 payload = {
@@ -166,7 +184,7 @@ with st.container():
         st.button("Tải Hình Báo Cáo / 下载图片", use_container_width=True)
 
 # ---------------------------------------------------------
-# BẢNG TIẾN ĐỘ SỬA CHỮA SONG NGỮ (TIẾNG VIỆT TRÊN, TIẾNG TRUNG DƯỚI)
+# BẢNG TIẾN ĐỘ SỬA CHỮA (TỰ ĐỘNG DỊCH BẢN GHI CŨ)
 # ---------------------------------------------------------
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
 
@@ -179,7 +197,6 @@ except Exception:
 if not reports:
     st.info("Chưa có dữ liệu báo cáo nào.")
 else:
-    # Tỉ lệ các cột khớp hình ảnh giao diện mẫu
     h_col1, h_col2, h_col3, h_col4, h_col5, h_col6, h_col7 = st.columns([0.6, 1.2, 1.5, 2.5, 2.5, 1.5, 1.8])
     with h_col1: st.markdown("**STT<br><span style='font-size:11px;'>序号</span>**", unsafe_allow_html=True)
     with h_col2: st.markdown("**Máy<br><span style='font-size:11px;'>设备</span>**", unsafe_allow_html=True)
@@ -195,16 +212,18 @@ else:
         row_id = row.get("id")
         is_done = row.get("status") == "Hoàn thành"
         
-        # Tự động làm tròn lại mốc giờ 30 phút
         raw_time = row.get("start_time") if row.get("start_time") else row.get("created_at", "")
         time_display = round_to_30min(raw_time)
 
-        # Xử lý dịch tự động Tiếng Trung nếu dòng cũ chưa có
         c_vi_val = row.get("content_vi", "")
-        c_zh_val = row.get("content_zh") if row.get("content_zh") else translate_to_zh(c_vi_val)
-        
+        c_zh_val = row.get("content_zh")
+        if not c_zh_val and c_vi_val:
+            c_zh_val = translate_to_zh(c_vi_val)
+
         s_vi_val = row.get("solution_vi", "")
-        s_zh_val = row.get("solution_zh") if row.get("solution_zh") else translate_to_zh(s_vi_val)
+        s_zh_val = row.get("solution_zh")
+        if not s_zh_val and s_vi_val:
+            s_zh_val = translate_to_zh(s_vi_val)
 
         c1, c2, c3, c4, c5, c6, c7 = st.columns([0.6, 1.2, 1.5, 2.5, 2.5, 1.5, 1.8])
 
@@ -212,13 +231,11 @@ else:
         with c2: st.write(f"**{row.get('machine_name')}**")
         with c3: st.caption(time_display)
         
-        # Ô Nội Dung: Tiếng Việt ở trên, Tiếng Trung xuống dòng ở dưới
         with c4:
             st.write(c_vi_val)
             if c_zh_val:
                 st.markdown(f'<span class="text-zh">{c_zh_val}</span>', unsafe_allow_html=True)
                 
-        # Ô Giải Pháp: Tiếng Việt ở trên, Tiếng Trung xuống dòng ở dưới
         with c5:
             st.write(s_vi_val)
             if s_zh_val:
@@ -229,7 +246,6 @@ else:
             if is_done:
                 st.markdown("🟢 **Đã xong / 已完成**")
 
-        # Nút thao tác
         with c7:
             act_col1, act_col2, act_col3 = st.columns(3)
             

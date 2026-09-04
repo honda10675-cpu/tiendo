@@ -1,22 +1,34 @@
 import json
 import urllib.parse
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import streamlit as st
 from supabase import Client, create_client
 
 st.set_page_config(page_title="BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC", layout="wide")
 
-# ---------------------------------------------------------
-# HÀM DỊCH ĐA TẦNG VIỆT -> TRUNG (ĐẢM BẢO 100% RA CHỮ TRUNG)
-# ---------------------------------------------------------
+# Lấy thời gian thực chuẩn múi giờ Việt Nam (UTC+7)
+def get_vietnam_time():
+    tz_vn = timezone(timedelta(hours=7))
+    now_vn = datetime.now(tz_vn)
+    return now_vn.strftime("%Y-%m-%d %H:%M")
+
+def format_time_display(dt_str):
+    if not dt_str:
+        return get_vietnam_time()
+    try:
+        clean_str = dt_str.replace("T", " ")[:16]
+        return clean_str
+    except Exception:
+        return dt_str
+
+# Hàm dịch đa tầng Việt -> Trung
 def translate_to_zh(text):
     if not text or not str(text).strip():
         return ""
-    
     text_clean = str(text).strip()
     
-    # Cách 1: MyMemory Translate API (Cực kỳ ổn định trên Server Streamlit)
+    # MyMemory API
     try:
         url_mm = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(text_clean)}&langpair=vi|zh-CN"
         req = urllib.request.Request(url_mm, headers={'User-Agent': 'Mozilla/5.0'})
@@ -28,7 +40,7 @@ def translate_to_zh(text):
     except Exception:
         pass
 
-    # Cách 2: Google Translate API (Chống bị block bằng Header)
+    # Google Translate API
     try:
         url_gt = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=vi&tl=zh-CN&dt=t&q={urllib.parse.quote(text_clean)}"
         req = urllib.request.Request(url_gt, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
@@ -42,44 +54,16 @@ def translate_to_zh(text):
 
     return ""
 
-def get_rounded_time():
-    now = datetime.now()
-    minute = now.minute
-    if minute < 15:
-        now = now.replace(minute=0, second=0, microsecond=0)
-    elif minute < 45:
-        now = now.replace(minute=30, second=0, microsecond=0)
-    else:
-        now = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-    return now.strftime("%Y-%m-%d %H:%M")
-
-def round_to_30min(dt_str):
-    if not dt_str:
-        return ""
-    try:
-        clean_str = dt_str.replace("T", " ")[:16]
-        dt = datetime.strptime(clean_str, "%Y-%m-%d %H:%M")
-        minute = dt.minute
-        if minute < 15:
-            dt = dt.replace(minute=0, second=0)
-        elif minute < 45:
-            dt = dt.replace(minute=30, second=0)
-        else:
-            dt = (dt + timedelta(hours=1)).replace(minute=0, second=0)
-        return dt.strftime("%Y-%m-%d %H:%M")
-    except Exception:
-        return dt_str
-
 # Kết nối Supabase
 try:
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(url, key)
 except Exception:
-    st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY trong Streamlit Settings!")
+    st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY!")
     st.stop()
 
-# Định dạng CSS
+# CSS giao diện
 st.markdown("""
 <style>
     .main-title {
@@ -128,9 +112,7 @@ if st.session_state.edit_id:
     except Exception:
         pass
 
-# ---------------------------------------------------------
 # FORM NHẬP BÁO CÁO
-# ---------------------------------------------------------
 with st.container():
     st.markdown("**Tên Máy / 设备名称:**")
     machine = st.text_input("machine_input", value=edit_data.get("machine_name", ""), placeholder="Nhập tên máy...", label_visibility="collapsed")
@@ -149,23 +131,15 @@ with st.container():
         btn_label = "Thêm Báo Cáo / 添加汇报" if not st.session_state.edit_id else "Cập Nhật Báo Cáo / 更新汇报"
         if st.button(btn_label, type="primary", use_container_width=True):
             if not machine or not c_vi or not est_time:
-                st.warning("Vui lòng điền đầy đủ các thông tin!")
+                st.warning("Vui lòng điền đầy đủ thông tin!")
             else:
                 c_zh = translate_to_zh(c_vi)
                 s_zh = translate_to_zh(s_vi) if s_vi else ""
-                start_time_auto = get_rounded_time()
+                now_vn_str = get_vietnam_time()
 
-                full_content_vi = c_vi
-                full_content_zh = c_zh
-                if s_vi:
-                    full_content_vi += f" | Giải pháp: {s_vi}"
-                if s_zh:
-                    full_content_zh += f" | 方案: {s_zh}"
-
-                # Payload chuẩn 
-                payload_full = {
+                payload = {
                     "machine_name": machine,
-                    "start_time": start_time_auto,
+                    "start_time": now_vn_str,
                     "content_vi": c_vi,
                     "content_zh": c_zh,
                     "solution_vi": s_vi,
@@ -173,35 +147,15 @@ with st.container():
                     "estimated_time": est_time
                 }
 
-                # Payload an toàn cho DB cũ
-                payload_safe = {
-                    "machine_name": machine,
-                    "content_vi": full_content_vi,
-                    "content_zh": full_content_zh,
-                    "estimated_time": est_time
-                }
-
-                saved = False
                 try:
                     if st.session_state.edit_id:
-                        supabase.table("repair_reports").update(payload_full).eq("id", st.session_state.edit_id).execute()
+                        supabase.table("repair_reports").update(payload).eq("id", st.session_state.edit_id).execute()
                     else:
-                        payload_full["status"] = "Đang sửa"
-                        supabase.table("repair_reports").insert(payload_full).execute()
-                    saved = True
-                except Exception:
-                    pass
-
-                if not saved:
-                    try:
-                        if st.session_state.edit_id:
-                            supabase.table("repair_reports").update(payload_safe).eq("id", st.session_state.edit_id).execute()
-                        else:
-                            payload_safe["status"] = "Đang sửa"
-                            supabase.table("repair_reports").insert(payload_safe).execute()
-                    except Exception as e:
-                        st.error(f"Lỗi Supabase: {e}")
-                        st.stop()
+                        payload["status"] = "Đang sửa"
+                        supabase.table("repair_reports").insert(payload).execute()
+                except Exception as e:
+                    st.error(f"Lỗi Supabase: {e}. Bạn cần bổ sung 2 cột solution_vi và solution_zh vào bảng repair_reports trên Supabase.")
+                    st.stop()
 
                 st.session_state.edit_id = None
                 st.success("Lưu báo cáo thành công!")
@@ -210,9 +164,7 @@ with st.container():
     with col_b2:
         st.button("Tải Hình Báo Cáo / 下载图片", use_container_width=True)
 
-# ---------------------------------------------------------
-# BẢNG TIẾN ĐỘ SỬA CHỮA SONG NGỮ TỰ ĐỘNG
-# ---------------------------------------------------------
+# BẢNG TIẾN ĐỘ SỬA CHỮA SONG NGỮ
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
 
 try:
@@ -240,15 +192,13 @@ else:
         is_done = row.get("status") == "Hoàn thành"
         
         raw_time = row.get("start_time") if row.get("start_time") else row.get("created_at", "")
-        time_display = round_to_30min(raw_time)
+        time_display = format_time_display(raw_time)
 
-        # Xử lý nội dung tiếng Việt & tiếng Trung
         c_vi_val = row.get("content_vi", "")
         c_zh_val = row.get("content_zh")
         if not c_zh_val or not str(c_zh_val).strip():
             c_zh_val = translate_to_zh(c_vi_val)
 
-        # Xử lý giải pháp tiếng Việt & tiếng Trung
         s_vi_val = row.get("solution_vi", "")
         s_zh_val = row.get("solution_zh")
         if not s_zh_val or not str(s_zh_val).strip():
@@ -262,7 +212,7 @@ else:
         with c3: st.caption(time_display)
         
         with c4:
-            st.write(c_vi_val)
+            st.write(c_vi_val if c_vi_val else "")
             if c_zh_val:
                 st.markdown(f'<span class="text-zh">{c_zh_val}</span>', unsafe_allow_html=True)
                 
@@ -272,7 +222,7 @@ else:
                 if s_zh_val:
                     st.markdown(f'<span class="text-zh">{s_zh_val}</span>', unsafe_allow_html=True)
             else:
-                st.write("-")
+                st.write("")
                 
         with c6:
             st.write(row.get("estimated_time"))

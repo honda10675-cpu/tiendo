@@ -157,7 +157,16 @@ with st.container():
                 s_zh = translate_to_zh(s_vi) if s_vi else ""
                 start_time_auto = get_rounded_time()
 
-                payload = {
+                # Gộp giải pháp vào nội dung nếu bảng không chia cột
+                full_content_vi = c_vi
+                full_content_zh = c_zh
+                if s_vi:
+                    full_content_vi += f"\nGiải pháp: {s_vi}"
+                if s_zh:
+                    full_content_zh += f"\n方案: {s_zh}"
+
+                # Thử lưu dữ liệu chuẩn đầy đủ cột
+                payload_full = {
                     "machine_name": machine,
                     "start_time": start_time_auto,
                     "content_vi": c_vi,
@@ -167,27 +176,37 @@ with st.container():
                     "estimated_time": est_time
                 }
 
-                # Thử lưu dữ liệu đầy đủ, nếu Supabase báo lỗi thiếu cột solution thì tự động hạ cấp xuống lưu tương thích
+                # Payload tối giản chuẩn 100% khớp với bảng gốc Supabase của anh
+                payload_safe = {
+                    "machine_name": machine,
+                    "content_vi": full_content_vi,
+                    "content_zh": full_content_zh,
+                    "estimated_time": est_time
+                }
+
+                saved = False
+                # BƯỚC 1: Thử lưu chuẩn
                 try:
                     if st.session_state.edit_id:
-                        supabase.table("repair_reports").update(payload).eq("id", st.session_state.edit_id).execute()
+                        supabase.table("repair_reports").update(payload_full).eq("id", st.session_state.edit_id).execute()
                     else:
-                        payload["status"] = "Đang sửa"
-                        supabase.table("repair_reports").insert(payload).execute()
+                        payload_full["status"] = "Đang sửa"
+                        supabase.table("repair_reports").insert(payload_full).execute()
+                    saved = True
                 except Exception:
-                    # Tương thích với database cũ không có cột solution_vi/solution_zh
-                    payload_fallback = {
-                        "machine_name": machine,
-                        "start_time": start_time_auto,
-                        "content_vi": c_vi + (f" | Giải pháp: {s_vi}" if s_vi else ""),
-                        "content_zh": c_zh + (f" | 方案: {s_zh}" if s_zh else ""),
-                        "estimated_time": est_time
-                    }
-                    if st.session_state.edit_id:
-                        supabase.table("repair_reports").update(payload_fallback).eq("id", st.session_state.edit_id).execute()
-                    else:
-                        payload_fallback["status"] = "Đang sửa"
-                        supabase.table("repair_reports").insert(payload_fallback).execute()
+                    pass
+
+                # BƯỚC 2: Nếu lỗi thì dùng ngay payload_safe an toàn tuyệt đối
+                if not saved:
+                    try:
+                        if st.session_state.edit_id:
+                            supabase.table("repair_reports").update(payload_safe).eq("id", st.session_state.edit_id).execute()
+                        else:
+                            payload_safe["status"] = "Đang sửa"
+                            supabase.table("repair_reports").insert(payload_safe).execute()
+                    except Exception as e:
+                        st.error(f"Lỗi kết nối Supabase: {e}")
+                        st.stop()
 
                 st.session_state.edit_id = None
                 st.success("Lưu báo cáo thành công!")
@@ -225,6 +244,7 @@ else:
         row_id = row.get("id")
         is_done = row.get("status") == "Hoàn thành"
         
+        # Lấy giờ tạo làm tròn 30 phút
         raw_time = row.get("start_time") if row.get("start_time") else row.get("created_at", "")
         time_display = round_to_30min(raw_time)
 

@@ -14,19 +14,11 @@ except Exception:
     st.error("Chưa cấu hình Secrets Supabase trong Streamlit Settings!")
     st.stop()
 
-# Tùy chỉnh CSS để giống hệt mẫu
+# CSS chuẩn hóa bảng hiển thị
 st.markdown("""
 <style>
     .block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
     
-    /* Ô nhập liệu */
-    .stTextInput > div > div > input, .stTextArea > div > div > textarea {
-        background-color: #f8fafc;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-    }
-
-    /* Tiêu đề bảng */
     .table-title {
         text-align: center;
         font-weight: bold;
@@ -36,7 +28,6 @@ st.markdown("""
         margin-bottom: 15px;
     }
 
-    /* Bảng dữ liệu tiến độ */
     .custom-table {
         width: 100%;
         border-collapse: collapse;
@@ -62,7 +53,6 @@ st.markdown("""
     .text-zh {
         color: #d97706;
         font-size: 12px;
-        display: block;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -83,7 +73,6 @@ s_zh = st.text_input("Giải pháp (Tiếng Trung - 中文)", key="input_s_zh", 
 st.markdown("**Thời Gian Dự Kiến Hoàn Thành / 预计完成时间:**")
 est_time = st.text_input("", key="input_est", placeholder="Ví dụ: 2 giờ, 17:00 ngày 03/09...", label_visibility="collapsed")
 
-# Hai nút bấm nằm ngang màu Xanh Dương & Xanh Lá
 col_btn1, col_btn2 = st.columns(2)
 
 with col_btn1:
@@ -109,7 +98,7 @@ with col_btn2:
     st.button("Tải Hình Báo Cáo / 下载图片", use_container_width=True)
 
 # ---------------------------------------------------------
-# BẢNG TIẾN ĐỘ SỬA CHỮA (TƯƠNG THÍCH HOÀN HẢO THEO ẢNH)
+# BẢNG TIẾN ĐỘ SỬA CHỮA (XUẤT CHUẨN HTML)
 # ---------------------------------------------------------
 st.markdown('<div class="table-title">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
 
@@ -122,8 +111,8 @@ except Exception:
 if not reports:
     st.info("Chưa có dữ liệu báo cáo nào.")
 else:
-   # Cấu trúc bảng HTML đầy đủ thẻ mở table và thead
-    html_code = """
+    # Mở đầu bảng HTML
+    table_html = """
     <table class="custom-table">
         <thead>
             <tr>
@@ -138,12 +127,13 @@ else:
         <tbody>
     """
     
+    rows_html = ""
     for idx, row in enumerate(reports, 1):
         created_at = row.get("created_at", "")[:16].replace("T", " ")
         c_zh_text = f'<br><span class="text-zh">{row.get("content_zh")}</span>' if row.get("content_zh") else ""
         s_zh_text = f'<br><span class="text-zh">{row.get("solution_zh")}</span>' if row.get("solution_zh") else ""
         
-        html_code += f"""
+        rows_html += f"""
         <tr>
             <td><b>{idx}</b></td>
             <td><b>{row.get('machine_name')}</b></td>
@@ -154,5 +144,8 @@ else:
         </tr>
         """
         
-    html_code += "</tbody></table>"
-    st.markdown(html_code, unsafe_allow_html=True)
+    # Đóng bảng HTML
+    table_html += rows_html + "</tbody></table>"
+    
+    # Hiển thị duy nhất một lần
+    st.markdown(table_html, unsafe_allow_html=True)

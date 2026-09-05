@@ -75,29 +75,23 @@ st.markdown("""
         text-align: center;
         color: #1e40af;
         font-weight: bold;
-        font-size: 26px;
-        margin-bottom: 5px;
+        font-size: 24px;
+        margin-bottom: 2px;
     }
     .sub-title {
         text-align: center;
-        color: #475569;
-        font-size: 14px;
-        margin-bottom: 20px;
+        color: #be185d;
+        font-size: 13px;
+        font-weight: bold;
+        margin-bottom: 15px;
     }
     .table-header {
         text-align: center;
         font-weight: bold;
         font-size: 18px;
         color: #334155;
-        margin-top: 25px;
-        margin-bottom: 15px;
-    }
-    .text-zh {
-        color: #d97706;
-        font-size: 13px;
-        font-weight: bold;
-        display: block;
-        margin-top: 4px;
+        margin-top: 20px;
+        margin-bottom: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -183,7 +177,7 @@ with st.container():
             st.success("Lưu báo cáo thành công!")
             st.rerun()
 
-# BẢNG TIẾN ĐỘ SỬA CHỮA (TẢI/SAO CHÉP HÌNH ÁNH)
+# BẢNG TIẾN ĐỘ SỬA CHỮA
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
 
 try:
@@ -241,22 +235,19 @@ if reports:
         * {{ box-sizing: border-box; }}
         body {{ margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: transparent; }}
         
-        .btn-group {{ display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }}
-        .btn-action {{
-            flex: 1;
-            min-width: 180px;
-            background-color: #2563eb;
+        .btn-box {{ text-align: center; margin-bottom: 8px; }}
+        .btn-download {{
+            background-color: #be185d;
             color: white;
             border: none;
-            padding: 10px 14px;
-            font-size: 14px;
+            padding: 12px 16px;
+            font-size: 15px;
             font-weight: bold;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
-            text-align: center;
+            width: 100%;
         }}
-        .btn-copy {{ background-color: #16a34a; }}
-        .btn-action:active {{ opacity: 0.8; }}
+        .btn-download:active {{ background-color: #9d174d; }}
         
         .table-wrapper {{ width: 100%; overflow-x: auto; }}
         
@@ -269,7 +260,7 @@ if reports:
         }}
         
         .title {{ text-align: center; color: #1e40af; font-size: 18px; font-weight: bold; }}
-        .subtitle {{ text-align: center; color: #475569; font-size: 12px; font-weight: bold; margin-bottom: 10px; }}
+        .subtitle {{ text-align: center; color: #be185d; font-size: 12px; font-weight: bold; margin-bottom: 10px; }}
         
         table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 4px; overflow: hidden; table-layout: fixed; }}
         th {{ background-color: #1e40af; color: white; font-size: 12px; padding: 8px 2px; text-align: center; }}
@@ -277,9 +268,8 @@ if reports:
     </style>
     </head>
     <body>
-        <div class="btn-group">
-            <button class="btn-action btn-copy" onclick="copyImage()">📋 SAO CHÉP HÌNH BẢNG (COPY)</button>
-            <button class="btn-action" onclick="downloadImage()">📥 TẢI ÁNH BẢNG VỀ MÁY</button>
+        <div class="btn-box">
+            <button class="btn-download" onclick="downloadImage()">📸 TẢI ÁNH BÁO CÁO TOÀN MÀN HÌNH</button>
         </div>
 
         <div class="table-wrapper">
@@ -315,24 +305,6 @@ if reports:
                 link.click();
             }});
         }}
-
-        function copyImage() {{
-            var element = document.getElementById('capture-target');
-            html2canvas(element, {{ scale: 2 }}).then(function(canvas) {{
-                canvas.toBlob(function(blob) {{
-                    try {{
-                        const item = new ClipboardItem({{ "image/png": blob }});
-                        navigator.clipboard.write([item]).then(function() {{
-                            alert("✅ Đã sao chép ảnh bảng tiến độ! Anh có thể dán (Ctrl+V) vào Zalo/WeChat.");
-                        }}, function(err) {{
-                            alert("Lỗi sao chép: " + err);
-                        }});
-                    }} catch (e) {{
-                        alert("Trình duyệt không hỗ trợ copy trực tiếp, hãy nhấn nút Tải Ánh về máy.");
-                    }}
-                }});
-            }});
-        }}
         </script>
     </body>
     </html>
@@ -341,56 +313,53 @@ if reports:
     dynamic_height = max(450, len(reports) * 80 + 130)
     components.html(export_html, height=dynamic_height, scrolling=True)
 
-# THAO TÁC QUẢN LÝ (SỬA, XÓA, TÍCH HOÀN THÀNH)
+# PHẦN QUẢN LÝ THAO TÁC (ĐÃ CHỌN MÁY & HÀNG NGANG)
 st.markdown('<div class="table-header">QUẢN LÝ THAO TÁC / 操作管理</div>', unsafe_allow_html=True)
 
 if not reports:
     st.info("Chưa có dữ liệu báo cáo nào.")
 else:
-    for idx, row in enumerate(reports, 1):
-        row_id = row.get("id")
-        is_done = row.get("status") == "Hoàn thành"
+    # 1. Chọn máy muốn thao tác
+    machine_options = {f"#{i+1} - {r.get('machine_name', '')} ({r.get('status', 'Đang sửa')})": r for i, r in enumerate(reports)}
+    selected_machine_label = st.selectbox("Chọn máy muốn thao tác / 选择要操作的设备:", list(machine_options.keys()))
+    
+    selected_row = machine_options[selected_machine_label]
+    row_id = selected_row.get("id")
+    is_done = selected_row.get("status") == "Hoàn thành"
 
-        c1, c2, c3 = st.columns([1, 4, 2])
+    # 2. Hiển thị 3 nút thao tác trên 1 HÀNG NGANG
+    c_btn1, c_btn2, c_btn3 = st.columns(3)
 
-        with c1: 
-            st.write(f"**#{idx} - {row.get('machine_name')}**")
-        with c2: 
-            st.caption(f"Trạng thái: {'🟢 Đã xong' if is_done else '🟡 Đang sửa'}")
-        
-        with c3:
-            act_col1, act_col2, act_col3 = st.columns(3)
-            
-            with act_col1:
-                if st.button("✏️", key=f"edit_{row_id}", help="Sửa"):
-                    st.session_state.edit_id = row_id
+    with c_btn1:
+        if st.button("✏️ Sửa Báo Cáo", use_container_width=True, key=f"edit_sel_{row_id}"):
+            st.session_state.edit_id = row_id
+            st.rerun()
+
+    with c_btn2:
+        check_text = "✅ Đã Hoàn Thành" if is_done else "⬜ Đánh Dấu Xong"
+        if st.button(check_text, use_container_width=True, key=f"done_sel_{row_id}"):
+            new_status = "Đang sửa" if is_done else "Hoàn thành"
+            supabase.table("repair_reports").update({"status": new_status}).eq("id", row_id).execute()
+            st.rerun()
+
+    with c_btn3:
+        if st.button("🗑️ Xóa Báo Cáo", use_container_width=True, key=f"del_sel_{row_id}"):
+            st.session_state[f"confirm_del_{row_id}"] = True
+
+    # Xác nhận xóa mật khẩu 230
+    if st.session_state.get(f"confirm_del_{row_id}"):
+        pwd = st.text_input("Nhập mật khẩu xóa (230):", type="password", key=f"pwd_{row_id}")
+        col_pass1, col_pass2 = st.columns(2)
+        with col_pass1:
+            if st.button("Xác Nhận Xóa", key=f"ok_del_{row_id}", type="primary", use_container_width=True):
+                if pwd == "230":
+                    supabase.table("repair_reports").delete().eq("id", row_id).execute()
+                    st.session_state.pop(f"confirm_del_{row_id}", None)
+                    st.success("Đã xóa báo cáo thành công!")
                     st.rerun()
-
-            with act_col2:
-                check_icon = "✅" if is_done else "⬜"
-                if st.button(check_icon, key=f"done_{row_id}", help="Tích hoàn thành"):
-                    new_status = "Đang sửa" if is_done else "Hoàn thành"
-                    supabase.table("repair_reports").update({"status": new_status}).eq("id", row_id).execute()
-                    st.rerun()
-
-            with act_col3:
-                if st.button("🗑️", key=f"del_{row_id}", help="Xóa"):
-                    st.session_state[f"confirm_del_{row_id}"] = True
-
-            if st.session_state.get(f"confirm_del_{row_id}"):
-                pwd = st.text_input("Mật khẩu (230):", type="password", key=f"pwd_{row_id}")
-                col_pass1, col_pass2 = st.columns(2)
-                with col_pass1:
-                    if st.button("OK", key=f"ok_del_{row_id}"):
-                        if pwd == "230":
-                            supabase.table("repair_reports").delete().eq("id", row_id).execute()
-                            st.session_state.pop(f"confirm_del_{row_id}", None)
-                            st.success("Đã xóa!")
-                            st.rerun()
-                        else:
-                            st.error("Sai MK!")
-                with col_pass2:
-                    if st.button("Hủy", key=f"cancel_del_{row_id}"):
-                        st.session_state.pop(f"confirm_del_{row_id}", None)
-                        st.rerun()
-        st.divider()
+                else:
+                    st.error("Sai mật khẩu!")
+        with col_pass2:
+            if st.button("Hủy Bỏ", key=f"cancel_del_{row_id}", use_container_width=True):
+                st.session_state.pop(f"confirm_del_{row_id}", None)
+                st.rerun()

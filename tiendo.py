@@ -109,8 +109,6 @@ st.markdown('<div class="sub-title">设备维修进度汇报</div>', unsafe_allo
 
 if "edit_id" not in st.session_state:
     st.session_state.edit_id = None
-if "show_image" not in st.session_state:
-    st.session_state.show_image = False
 
 edit_data = {}
 if st.session_state.edit_id:
@@ -135,73 +133,67 @@ with st.container():
     st.markdown("**Thời Gian Dự Kiến Hoàn Thành / 预计完成时间:**")
     est_time = st.text_input("est_input", value=edit_data.get("estimated_time", ""), placeholder="Ví dụ: 2 giờ, 17:00 ngày 03/09...", label_visibility="collapsed")
 
-    col_b1, col_b2 = st.columns(2)
-    with col_b1:
-        btn_label = "Thêm Báo Cáo / 添加汇报" if not st.session_state.edit_id else "Cập Nhật Báo Cáo / 更新汇报"
-        if st.button(btn_label, type="primary", use_container_width=True):
-            if not machine or not c_vi or not est_time:
-                st.warning("Vui lòng điền đầy đủ thông tin!")
-            else:
-                c_zh = translate_to_zh(c_vi)
-                s_zh = translate_to_zh(s_vi) if s_vi else ""
+    btn_label = "Thêm Báo Cáo / 添加汇报" if not st.session_state.edit_id else "Cập Nhật Báo Cáo / 更新汇报"
+    if st.button(btn_label, type="primary", use_container_width=True):
+        if not machine or not c_vi or not est_time:
+            st.warning("Vui lòng điền đầy đủ thông tin!")
+        else:
+            c_zh = translate_to_zh(c_vi)
+            s_zh = translate_to_zh(s_vi) if s_vi else ""
 
-                payload_full = {
-                    "machine_name": machine,
-                    "content_vi": c_vi,
-                    "content_zh": c_zh,
-                    "solution_vi": s_vi,
-                    "solution_zh": s_zh,
-                    "estimated_time": est_time
-                }
+            payload_full = {
+                "machine_name": machine,
+                "content_vi": c_vi,
+                "content_zh": c_zh,
+                "solution_vi": s_vi,
+                "solution_zh": s_zh,
+                "estimated_time": est_time
+            }
 
-                payload_legacy = {
-                    "machine_name": machine,
-                    "content_vi": c_vi,
-                    "content_zh": c_zh,
-                    "solution": s_vi,
-                    "estimated_time": est_time
-                }
+            payload_legacy = {
+                "machine_name": machine,
+                "content_vi": c_vi,
+                "content_zh": c_zh,
+                "solution": s_vi,
+                "estimated_time": est_time
+            }
 
-                saved = False
+            saved = False
+            try:
+                if st.session_state.edit_id:
+                    supabase.table("repair_reports").update(payload_full).eq("id", st.session_state.edit_id).execute()
+                else:
+                    payload_full["status"] = "Đang sửa"
+                    supabase.table("repair_reports").insert(payload_full).execute()
+                saved = True
+            except Exception:
+                pass
+
+            if not saved:
                 try:
                     if st.session_state.edit_id:
-                        supabase.table("repair_reports").update(payload_full).eq("id", st.session_state.edit_id).execute()
+                        supabase.table("repair_reports").update(payload_legacy).eq("id", st.session_state.edit_id).execute()
                     else:
-                        payload_full["status"] = "Đang sửa"
-                        supabase.table("repair_reports").insert(payload_full).execute()
+                        payload_legacy["status"] = "Đang sửa"
+                        supabase.table("repair_reports").insert(payload_legacy).execute()
                     saved = True
-                except Exception:
-                    pass
+                except Exception as e:
+                    st.error(f"Lỗi Supabase: {e}")
+                    st.stop()
 
-                if not saved:
-                    try:
-                        if st.session_state.edit_id:
-                            supabase.table("repair_reports").update(payload_legacy).eq("id", st.session_state.edit_id).execute()
-                        else:
-                            payload_legacy["status"] = "Đang sửa"
-                            supabase.table("repair_reports").insert(payload_legacy).execute()
-                        saved = True
-                    except Exception as e:
-                        st.error(f"Lỗi Supabase: {e}")
-                        st.stop()
+            st.session_state.edit_id = None
+            st.success("Lưu báo cáo thành công!")
+            st.rerun()
 
-                st.session_state.edit_id = None
-                st.success("Lưu báo cáo thành công!")
-                st.rerun()
-
-    with col_b2:
-        if st.button("📸 Bật Khung Coppy Ảnh Báo Cáo", use_container_width=True):
-            st.session_state.show_image = not st.session_state.show_image
-
-# Lấy dữ liệu báo cáo
+# Lấy dữ liệu báo cáo từ Supabase
 try:
     res = supabase.table("repair_reports").select("*").order("id", desc=True).execute()
     reports = res.data
 except Exception:
     reports = []
 
-# KHUNG BẢNG COPPY ĐÃ ĐƯỢC CẢI TIẾN RỘNG RÃI, RÕ RÀNG
-if st.session_state.show_image and reports:
+# TẠO NÚT COPY / TẢI ẢNH BÁO CÁO TỰ ĐỘNG (NGẦM), KHÔNG HIỂN THỊ LÀM XẤU GIAO DIỆN
+if reports:
     rows_html = ""
     for idx, r in enumerate(reports, 1):
         is_done = r.get("status") == "Hoàn thành"
@@ -220,70 +212,124 @@ if st.session_state.show_image and reports:
 
         rows_html += f"""
         <tr style="background-color: {bg_cls};">
-            <td style="padding: 10px 6px; text-align: center; font-weight: bold; border-bottom: 1px solid #f472b6; white-space: nowrap;">{idx}</td>
-            <td style="padding: 10px 8px; text-align: center; font-weight: bold; color: #1e40af; border-bottom: 1px solid #f472b6; white-space: nowrap;">{r.get('machine_name', '')}</td>
-            <td style="padding: 10px 8px; text-align: center; font-size: 13px; color: #475569; border-bottom: 1px solid #f472b6; white-space: nowrap;">{time_display}</td>
-            <td style="padding: 10px 10px; border-bottom: 1px solid #f472b6; min-width: 180px;">
-                <div style="font-weight: 500; color: #0f172a; font-size: 14px; word-break: break-word;">{c_vi_val}</div>
-                <div style="color: #db2777; font-size: 13px; font-weight: bold; margin-top: 2px; word-break: break-word;">{c_zh_val}</div>
+            <td style="padding: 10px; text-align: center; font-weight: bold; border-bottom: 1px solid #f472b6;">{idx}</td>
+            <td style="padding: 10px; text-align: center; font-weight: bold; color: #1e40af; border-bottom: 1px solid #f472b6;">{r.get('machine_name', '')}</td>
+            <td style="padding: 10px; text-align: center; font-size: 13px; color: #475569; border-bottom: 1px solid #f472b6;">{time_display}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #f472b6;">
+                <div style="font-weight: 500; color: #0f172a; font-size: 14px;">{c_vi_val}</div>
+                <div style="color: #db2777; font-size: 13px; font-weight: bold; margin-top: 2px;">{c_zh_val}</div>
             </td>
-            <td style="padding: 10px 10px; border-bottom: 1px solid #f472b6; min-width: 180px;">
-                <div style="font-weight: 500; color: #0f172a; font-size: 14px; word-break: break-word;">{s_vi_val}</div>
-                <div style="color: #db2777; font-size: 13px; font-weight: bold; margin-top: 2px; word-break: break-word;">{s_zh_val}</div>
+            <td style="padding: 10px; border-bottom: 1px solid #f472b6;">
+                <div style="font-weight: 500; color: #0f172a; font-size: 14px;">{s_vi_val}</div>
+                <div style="color: #db2777; font-size: 13px; font-weight: bold; margin-top: 2px;">{s_zh_val}</div>
             </td>
-            <td style="padding: 10px 8px; text-align: center; font-weight: 500; color: #334155; border-bottom: 1px solid #f472b6; font-size: 13px; min-width: 100px;">{r.get('estimated_time', '')}</td>
-            <td style="padding: 10px 8px; text-align: center; border-bottom: 1px solid #f472b6; white-space: nowrap;">
+            <td style="padding: 10px; text-align: center; font-weight: 500; color: #334155; border-bottom: 1px solid #f472b6; font-size: 13px;">{r.get('estimated_time', '')}</td>
+            <td style="padding: 10px; text-align: center; border-bottom: 1px solid #f472b6;">
                 <div style="font-weight: bold; color: {st_color}; font-size: 13px;">{st_text_vi}</div>
                 <div style="font-weight: bold; color: {st_color}; font-size: 12px;">{st_text_zh}</div>
             </td>
         </tr>
         """
 
-    card_html = f"""
+    export_html = f"""
     <!DOCTYPE html>
     <html>
     <head>
     <meta charset="utf-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        body {{ margin: 0; padding: 4px; font-family: -apple-system, Roboto, sans-serif; background-color: #fdf2f8; }}
-        .container {{ width: 100%; overflow-x: auto; }}
-        .card {{ background-color: #fdf2f8; padding: 12px; border-radius: 10px; border: 2px solid #be185d; min-width: 650px; }}
-        .title {{ text-align: center; color: #1e40af; font-size: 18px; font-weight: bold; }}
-        .subtitle {{ text-align: center; color: #be185d; font-size: 13px; font-weight: bold; margin-bottom: 10px; }}
-        table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 6px; overflow: hidden; table-layout: auto; }}
-        th {{ background-color: #1e40af; color: white; font-size: 13px; padding: 8px 6px; text-align: center; white-space: nowrap; }}
+        body {{ margin: 0; padding: 0; font-family: -apple-system, sans-serif; background-color: transparent; }}
+        .btn-box {{ text-align: center; margin: 10px 0; }}
+        .btn-copy {{
+            background-color: #be185d;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 15px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+        }}
+        .btn-copy:active {{ background-color: #9d174d; }}
+        
+        /* Khung báo cáo ngầm chỉ xuất hiện khi chụp ảnh */
+        #hidden-report {{
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            width: 900px;
+            background-color: #fdf2f8;
+            padding: 20px;
+            border-radius: 12px;
+            border: 3px solid #be185d;
+        }}
+        .title {{ text-align: center; color: #1e40af; font-size: 22px; font-weight: bold; }}
+        .subtitle {{ text-align: center; color: #be185d; font-size: 15px; font-weight: bold; margin-bottom: 15px; }}
+        table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }}
+        th {{ background-color: #1e40af; color: white; font-size: 14px; padding: 10px; text-align: center; }}
     </style>
     </head>
     <body>
-        <div class="container">
-            <div class="card">
-                <div class="title">BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC</div>
-                <div class="subtitle">设备维修进度汇报</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>STT<br><small>序号</small></th>
-                            <th>Máy<br><small>设备</small></th>
-                            <th>Bắt Đầu<br><small>开始时间</small></th>
-                            <th>Nội Dung Sửa Chữa<br><small>维修内容</small></th>
-                            <th>Giải Pháp<br><small>解决方案</small></th>
-                            <th>Dự Kiến<br><small>预计完成</small></th>
-                            <th>Trạng Thái<br><small>状态</small></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows_html}
-                    </tbody>
-                </table>
-            </div>
+        <div class="btn-box">
+            <button class="btn-copy" onclick="captureAndCopy()">📷 TẢI / COPY ẢNH BÁO CÁO (GỬI ZALO / WECHAT)</button>
         </div>
+
+        <!-- Khung bảng chuẩn đẹp ngầm dưới background -->
+        <div id="hidden-report">
+            <div class="title">BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC</div>
+            <div class="subtitle">设备维修进度汇报</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 6%;">STT<br><small>序号</small></th>
+                        <th style="width: 12%;">Máy<br><small>设备</small></th>
+                        <th style="width: 16%;">Bắt Đầu<br><small>开始时间</small></th>
+                        <th style="width: 26%;">Nội Dung Sửa Chữa<br><small>维修内容</small></th>
+                        <th style="width: 26%;">Giải Pháp<br><small>解决方案</small></th>
+                        <th style="width: 14%;">Dự Kiến<br><small>预计完成</small></th>
+                        <th style="width: 10%;">Trạng Thái<br><small>状态</small></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows_html}
+                </tbody>
+            </table>
+        </div>
+
+        <script>
+        function captureAndCopy() {{
+            var element = document.getElementById('hidden-report');
+            html2canvas(element, {{ scale: 2 }}).then(function(canvas) {{
+                canvas.toBlob(function(blob) {{
+                    // Thử copy thẳng vào Clipboard
+                    if (navigator.clipboard && window.ClipboardItem) {{
+                        var item = new ClipboardItem({{ "image/png": blob }});
+                        navigator.clipboard.write([item]).then(function() {{
+                            alert("✅ Đã sao chép ảnh báo cáo! Mở Zalo/WeChat bấm Dán (Paste) là xong!");
+                        }}).catch(function(err) {{
+                            downloadImage(canvas);
+                        }});
+                    } else {{
+                        downloadImage(canvas);
+                    }}
+                }});
+            }});
+        }}
+
+        function downloadImage(canvas) {{
+            var link = document.createElement('a');
+            link.download = 'Bao_Cao_Tien_Do.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            alert("📥 Ảnh báo cáo đã được tải về máy! Anh vào Zalo/WeChat gửi ảnh vừa tải nhé!");
+        }}
+        </script>
     </body>
     </html>
     """
-    
-    calc_height = 130 + len(reports) * 75
-    components.html(card_html, height=calc_height, scrolling=True)
-    st.divider()
+    components.html(export_html, height=65)
 
 # BẢNG TIẾN ĐỘ TRÊN MÀN HÌNH APP
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)

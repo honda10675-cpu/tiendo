@@ -1,3 +1,4 @@
+import base64
 import json
 import urllib.parse
 import urllib.request
@@ -6,10 +7,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 from supabase import Client, create_client
 
-# Cấu hình trang hiển thị tràn màn hình (wide)
 st.set_page_config(page_title="BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC", layout="wide")
 
-# Chuyển đổi thời gian UTC từ Supabase sang múi giờ Việt Nam (+7)
 def convert_utc_to_vn(dt_str):
     if not dt_str:
         tz_vn = timezone(timedelta(hours=7))
@@ -28,12 +27,10 @@ def convert_utc_to_vn(dt_str):
         except Exception:
             return dt_str[:16] if len(dt_str) >= 16 else dt_str
 
-# Hàm dịch tự động Việt -> Trung
 def translate_to_zh(text):
     if not text or not str(text).strip():
         return ""
     text_clean = str(text).strip()
-    
     try:
         url_mm = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(text_clean)}&langpair=vi|zh-CN"
         req = urllib.request.Request(url_mm, headers={'User-Agent': 'Mozilla/5.0'})
@@ -44,21 +41,8 @@ def translate_to_zh(text):
             return translated
     except Exception:
         pass
-
-    try:
-        url_gt = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=vi&tl=zh-CN&dt=t&q={urllib.parse.quote(text_clean)}"
-        req = urllib.request.Request(url_gt, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-        res = urllib.request.urlopen(req, timeout=4)
-        data = json.loads(res.read().decode('utf-8'))
-        translated = "".join([item[0] for item in data[0] if item[0]])
-        if translated:
-            return translated
-    except Exception:
-        pass
-
     return ""
 
-# Kết nối Supabase
 try:
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
@@ -67,31 +51,26 @@ except Exception:
     st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY!")
     st.stop()
 
-# XÓA SẠCH LỀ THỪA, TỐI ƯU HIỂN THỊ TOÀN MÀN HÌNH
 st.markdown("""
 <style>
-    .stApp {
-        background-color: #fdf2f8 !important;
-    }
+    .stApp { background-color: #fdf2f8 !important; }
     .block-container {
-        padding-top: 0.5rem !important;
-        padding-bottom: 0.5rem !important;
-        padding-left: 0.2rem !important;
-        padding-right: 0.2rem !important;
+        padding-top: 0.2rem !important;
+        padding-bottom: 0.2rem !important;
+        padding-left: 0.1rem !important;
+        padding-right: 0.1rem !important;
     }
     header {visibility: hidden;}
     footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-# Lấy dữ liệu báo cáo từ Supabase
 try:
     res = supabase.table("repair_reports").select("*").order("id", desc=True).execute()
     reports = res.data
 except Exception:
     reports = []
 
-# TẠO KHUNG BÁO CÁO FULL CHIỀU NGANG DÀNH RIÊNG CHO ĐIỆN THOẠI
 if reports:
     rows_html = ""
     for idx, r in enumerate(reports, 1):
@@ -111,21 +90,21 @@ if reports:
 
         rows_html += f"""
         <tr style="background-color: {bg_cls};">
-            <td style="padding: 10px 4px; text-align: center; font-weight: bold; border-bottom: 1px solid #f472b6; font-size: 12px;">{idx}</td>
-            <td style="padding: 10px 4px; text-align: center; font-weight: bold; color: #1e40af; border-bottom: 1px solid #f472b6; font-size: 13px;">{r.get('machine_name', '')}</td>
-            <td style="padding: 10px 4px; text-align: center; font-size: 11px; color: #475569; border-bottom: 1px solid #f472b6;">{time_display}</td>
+            <td style="padding: 10px 4px; text-align: center; font-weight: bold; border-bottom: 1px solid #f472b6; font-size: 13px;">{idx}</td>
+            <td style="padding: 10px 4px; text-align: center; font-weight: bold; color: #1e40af; border-bottom: 1px solid #f472b6; font-size: 14px;">{r.get('machine_name', '')}</td>
+            <td style="padding: 10px 4px; text-align: center; font-size: 12px; color: #475569; border-bottom: 1px solid #f472b6;">{time_display}</td>
             <td style="padding: 10px 6px; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: 600; color: #0f172a; font-size: 12px; line-height: 1.3;">{c_vi_val}</div>
-                <div style="color: #db2777; font-size: 11px; font-weight: bold; margin-top: 2px;">{c_zh_val}</div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 13px; line-height: 1.3;">{c_vi_val}</div>
+                <div style="color: #db2777; font-size: 12px; font-weight: bold; margin-top: 2px;">{c_zh_val}</div>
             </td>
             <td style="padding: 10px 6px; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: 600; color: #0f172a; font-size: 12px; line-height: 1.3;">{s_vi_val}</div>
-                <div style="color: #db2777; font-size: 11px; font-weight: bold; margin-top: 2px;">{s_zh_val}</div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 13px; line-height: 1.3;">{s_vi_val}</div>
+                <div style="color: #db2777; font-size: 12px; font-weight: bold; margin-top: 2px;">{s_zh_val}</div>
             </td>
-            <td style="padding: 10px 4px; text-align: center; font-weight: 600; color: #334155; border-bottom: 1px solid #f472b6; font-size: 11px;">{r.get('estimated_time', '')}</td>
+            <td style="padding: 10px 4px; text-align: center; font-weight: 600; color: #334155; border-bottom: 1px solid #f472b6; font-size: 12px;">{r.get('estimated_time', '')}</td>
             <td style="padding: 10px 4px; text-align: center; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: bold; color: {st_color}; font-size: 11px;">{st_text_vi}</div>
-                <div style="font-weight: bold; color: {st_color}; font-size: 10px;">{st_text_zh}</div>
+                <div style="font-weight: bold; color: {st_color}; font-size: 12px;">{st_text_vi}</div>
+                <div style="font-weight: bold; color: {st_color}; font-size: 11px;">{st_text_zh}</div>
             </td>
         </tr>
         """
@@ -139,30 +118,25 @@ if reports:
     <style>
         body {{ margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #fdf2f8; }}
         
-        .btn-box {{ text-align: center; padding: 8px; position: sticky; top: 0; background-color: #fdf2f8; z-index: 99; }}
-        .btn-copy {{
+        .btn-box {{ text-align: center; padding: 5px; position: sticky; top: 0; background-color: #fdf2f8; z-index: 99; }}
+        .btn-download {{
             background-color: #be185d;
             color: white;
             border: none;
             padding: 12px 18px;
-            font-size: 15px;
+            font-size: 16px;
             font-weight: bold;
             border-radius: 8px;
             cursor: pointer;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             width: 100%;
         }}
-        .btn-copy:active {{ background-color: #9d174d; }}
+        .btn-download:active {{ background-color: #9d174d; }}
         
-        /* KHUNG TỰ ĐỘNG CUỘN NGANG CHO ĐIỆN THOẠI */
-        .outer-wrapper {{
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }}
+        .outer-wrapper {{ width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }}
         
         #capture-target {{
-            min-width: 1100px; /* Độ rộng đảm bảo hiển thị đẹp và đủ 7 cột */
+            min-width: 1200px;
             background-color: #fdf2f8;
             padding: 15px;
             box-sizing: border-box;
@@ -170,16 +144,16 @@ if reports:
             border-radius: 10px;
         }}
         
-        .title {{ text-align: center; color: #1e40af; font-size: 20px; font-weight: bold; }}
-        .subtitle {{ text-align: center; color: #be185d; font-size: 14px; font-weight: bold; margin-bottom: 12px; }}
+        .title {{ text-align: center; color: #1e40af; font-size: 22px; font-weight: bold; }}
+        .subtitle {{ text-align: center; color: #be185d; font-size: 15px; font-weight: bold; margin-bottom: 12px; }}
         table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; table-layout: fixed; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }}
-        th {{ background-color: #1e40af; color: white; font-size: 12px; padding: 8px 2px; text-align: center; word-wrap: break-word; }}
+        th {{ background-color: #1e40af; color: white; font-size: 13px; padding: 8px 2px; text-align: center; word-wrap: break-word; }}
         td {{ word-wrap: break-word; overflow-wrap: break-word; }}
     </style>
     </head>
     <body>
         <div class="btn-box">
-            <button class="btn-copy" onclick="captureAndCopy()">📸 CHỤP & SAO CHÉP BẢNG BÁO CÁO FULL 7 CỘT</button>
+            <button class="btn-download" onclick="downloadImage()">📥 TẢI ẢNH BÁO CÁO VỀ MÁY (GỬI ZALO/WECHAT)</button>
         </div>
 
         <div class="outer-wrapper">
@@ -206,35 +180,19 @@ if reports:
         </div>
 
         <script>
-        function captureAndCopy() {{
+        function downloadImage() {{
             var element = document.getElementById('capture-target');
-            html2canvas(element, {{ scale: 2, windowWidth: 1150 }}).then(function(canvas) {{
-                canvas.toBlob(function(blob) {{
-                    if (navigator.clipboard && window.ClipboardItem) {{
-                        var item = new ClipboardItem({{ "image/png": blob }});
-                        navigator.clipboard.write([item]).then(function() {{
-                            alert("✅ Đã sao chép ảnh báo cáo ĐẦY ĐỦ 7 CỘT! Anh sang Zalo/WeChat bấm Dán (Paste) là xong nhé!");
-                        }}).catch(function(err) {{
-                            downloadImage(canvas);
-                        }});
-                    }} else {{
-                        downloadImage(canvas);
-                    }}
-                }});
+            html2canvas(element, {{ scale: 2, windowWidth: 1250 }}).then(function(canvas) {{
+                var link = document.createElement('a');
+                link.download = 'Bao_Cao_Tien_Do.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
             }});
-        }}
-
-        function downloadImage(canvas) {{
-            var link = document.createElement('a');
-            link.download = 'Bao_Cao_Tien_Do_Full.png';
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-            alert("📥 Ảnh báo cáo đã tải về máy! Anh mở Zalo/WeChat gửi ảnh vừa tải nhé!");
         }}
         </script>
     </body>
     </html>
     """
-    components.html(export_html, height=600, scrolling=True)
+    components.html(export_html, height=650, scrolling=True)
 else:
     st.info("Chưa có dữ liệu báo cáo nào trong cơ sở dữ liệu.")

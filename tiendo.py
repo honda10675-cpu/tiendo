@@ -48,17 +48,13 @@ st.markdown("""
 <style>
     .stApp { background-color: #fdf2f8 !important; }
     .block-container {
-        padding-top: 0.1rem !important;
-        padding-bottom: 0.1rem !important;
-        padding-left: 0rem !important;
-        padding-right: 0rem !important;
+        padding: 0.2rem !important;
     }
     header {visibility: hidden;}
     footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-# TRUY VẤN LẤY TẤT CẢ DỮ LIỆU (KHÔNG BỊ GIỚI HẠN DÒNG)
 try:
     res = supabase.table("repair_reports").select("*").order("id", desc=False).limit(1000).execute()
     reports = res.data
@@ -78,27 +74,27 @@ if reports:
         s_vi_val = r.get("solution_vi") if r.get("solution_vi") else r.get("solution", "")
         s_zh_val = r.get("solution_zh") if r.get("solution_zh") else translate_to_zh(s_vi_val)
         
-        st_text_vi = "🟢Đã xong" if is_done else "🟡Đang sửa"
+        st_text_vi = "🟢 Đã xong" if is_done else "🟡 Đang sửa"
         st_text_zh = "已完成" if is_done else "维修中"
         st_color = "#15803d" if is_done else "#b45309"
 
         rows_html += f"""
         <tr style="background-color: {bg_cls};">
-            <td style="padding: 6px 2px; text-align: center; font-weight: bold; border-bottom: 1px solid #f472b6; font-size: 11px;">{idx}</td>
-            <td style="padding: 6px 2px; text-align: center; font-weight: bold; color: #1e40af; border-bottom: 1px solid #f472b6; font-size: 11px;">{r.get('machine_name', '')}</td>
-            <td style="padding: 6px 2px; text-align: center; font-size: 10px; color: #475569; border-bottom: 1px solid #f472b6;">{time_display}</td>
-            <td style="padding: 6px 4px; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: 600; color: #0f172a; font-size: 11px; line-height: 1.2;">{c_vi_val}</div>
-                <div style="color: #db2777; font-size: 10px; font-weight: bold; margin-top: 1px;">{c_zh_val}</div>
+            <td style="padding: 10px 4px; text-align: center; font-weight: bold; border-bottom: 1px solid #f472b6; font-size: 13px;">{idx}</td>
+            <td style="padding: 10px 4px; text-align: center; font-weight: bold; color: #1e40af; border-bottom: 1px solid #f472b6; font-size: 14px;">{r.get('machine_name', '')}</td>
+            <td style="padding: 10px 4px; text-align: center; font-size: 12px; color: #475569; border-bottom: 1px solid #f472b6;">{time_display}</td>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #f472b6;">
+                <div style="font-weight: 600; color: #0f172a; font-size: 13px; line-height: 1.3;">{c_vi_val}</div>
+                <div style="color: #db2777; font-size: 12px; font-weight: bold; margin-top: 2px;">{c_zh_val}</div>
             </td>
-            <td style="padding: 6px 4px; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: 600; color: #0f172a; font-size: 11px; line-height: 1.2;">{s_vi_val}</div>
-                <div style="color: #db2777; font-size: 10px; font-weight: bold; margin-top: 1px;">{s_zh_val}</div>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #f472b6;">
+                <div style="font-weight: 600; color: #0f172a; font-size: 13px; line-height: 1.3;">{s_vi_val}</div>
+                <div style="color: #db2777; font-size: 12px; font-weight: bold; margin-top: 2px;">{s_zh_val}</div>
             </td>
-            <td style="padding: 6px 2px; text-align: center; font-weight: 600; color: #334155; border-bottom: 1px solid #f472b6; font-size: 10px;">{r.get('estimated_time', '')}</td>
-            <td style="padding: 6px 2px; text-align: center; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: bold; color: {st_color}; font-size: 10px;">{st_text_vi}</div>
-                <div style="font-weight: bold; color: {st_color}; font-size: 9px;">{st_text_zh}</div>
+            <td style="padding: 10px 4px; text-align: center; font-weight: 600; color: #334155; border-bottom: 1px solid #f472b6; font-size: 12px;">{r.get('estimated_time', '')}</td>
+            <td style="padding: 10px 4px; text-align: center; border-bottom: 1px solid #f472b6;">
+                <div style="font-weight: bold; color: {st_color}; font-size: 12px;">{st_text_vi}</div>
+                <div style="font-weight: bold; color: {st_color}; font-size: 11px;">{st_text_zh}</div>
             </td>
         </tr>
         """
@@ -114,66 +110,75 @@ if reports:
         * {{ box-sizing: border-box; }}
         body {{ margin: 0; padding: 4px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #fdf2f8; }}
         
-        .btn-box {{ text-align: center; margin-bottom: 6px; }}
+        .btn-box {{ text-align: center; margin-bottom: 8px; }}
         .btn-download {{
             background-color: #be185d;
             color: white;
             border: none;
-            padding: 10px 12px;
-            font-size: 14px;
+            padding: 12px 16px;
+            font-size: 15px;
             font-weight: bold;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             width: 100%;
+            max-width: 500px;
         }}
         .btn-download:active {{ background-color: #9d174d; }}
         
-        #capture-target {{
+        .table-container {{
             width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }}
+        
+        #capture-target {{
+            min-width: 900px;
             background-color: #fdf2f8;
-            padding: 8px 4px;
+            padding: 12px;
             border: 2px solid #be185d;
             border-radius: 8px;
         }}
         
-        .title {{ text-align: center; color: #1e40af; font-size: 16px; font-weight: bold; }}
-        .subtitle {{ text-align: center; color: #be185d; font-size: 12px; font-weight: bold; margin-bottom: 8px; }}
+        .title {{ text-align: center; color: #1e40af; font-size: 18px; font-weight: bold; }}
+        .subtitle {{ text-align: center; color: #be185d; font-size: 13px; font-weight: bold; margin-bottom: 10px; }}
         
         table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 6px; overflow: hidden; table-layout: fixed; }}
-        th {{ background-color: #1e40af; color: white; font-size: 11px; padding: 6px 1px; text-align: center; word-break: break-word; }}
+        th {{ background-color: #1e40af; color: white; font-size: 12px; padding: 8px 2px; text-align: center; word-break: break-word; }}
         td {{ word-break: break-word; overflow-wrap: break-word; }}
     </style>
     </head>
     <body>
         <div class="btn-box">
-            <button class="btn-download" onclick="downloadImage()">📸 TẢI ÁNH BÁO CÁO TOÀN MÀN HÌNH</button>
+            <button class="btn-download" onclick="downloadImage()">📸 TẢI ÁNH BÁO CÁO SẮC NÉT</button>
         </div>
 
-        <div id="capture-target">
-            <div class="title">BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC</div>
-            <div class="subtitle">设备维修进度汇报</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 7%;">STT<br><small>序号</small></th>
-                        <th style="width: 12%;">Máy<br><small>设备</small></th>
-                        <th style="width: 15%;">Bắt Đầu<br><small>开始</small></th>
-                        <th style="width: 25%;">Nội Dung<br><small>内容</small></th>
-                        <th style="width: 23%;">Giải Pháp<br><small>方案</small></th>
-                        <th style="width: 10%;">Dự Kiến<br><small>预计</small></th>
-                        <th style="width: 8%;">Trạng Thái<br><small>状态</small></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows_html}
-                </tbody>
-            </table>
+        <div class="table-container">
+            <div id="capture-target">
+                <div class="title">BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC</div>
+                <div class="subtitle">设备维修进度汇报</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 5%;">STT<br><small>序号</small></th>
+                            <th style="width: 10%;">Máy<br><small>设备</small></th>
+                            <th style="width: 14%;">Bắt Đầu<br><small>开始时间</small></th>
+                            <th style="width: 27%;">Nội Dung Sửa Chữa<br><small>维修内容</small></th>
+                            <th style="width: 27%;">Giải Pháp<br><small>解决方案</small></th>
+                            <th style="width: 9%;">Dự Kiến<br><small>预计完成</small></th>
+                            <th style="width: 8%;">Trạng Thái<br><small>状态</small></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows_html}
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <script>
         function downloadImage() {{
             var element = document.getElementById('capture-target');
-            html2canvas(element, {{ scale: 3 }}).then(function(canvas) {{
+            html2canvas(element, {{ scale: 2, windowWidth: 1000 }}).then(function(canvas) {{
                 var link = document.createElement('a');
                 link.download = 'Bao_Cao_Tien_Do.png';
                 link.href = canvas.toDataURL('image/png');
@@ -185,8 +190,7 @@ if reports:
     </html>
     """
     
-    # Tự động tính độ cao khung theo số lượng dòng dữ liệu
-    dynamic_height = max(600, len(reports) * 85 + 120)
+    dynamic_height = max(500, len(reports) * 90 + 130)
     components.html(export_html, height=dynamic_height, scrolling=True)
 else:
-    st.info("Chưa có dữ liệu báo cáo nào trong cơ sở dữ liệu.")
+    st.info("Chưa có dữ liệu báo cáo nào.")

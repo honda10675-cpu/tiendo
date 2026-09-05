@@ -28,7 +28,7 @@ def convert_utc_to_vn(dt_str):
         except Exception:
             return dt_str[:16] if len(dt_str) >= 16 else dt_str
 
-# Hàm dịch đa tầng Việt -> Trung
+# Hàm dịch Việt -> Trung
 def translate_to_zh(text):
     if not text or not str(text).strip():
         return ""
@@ -67,7 +67,7 @@ except Exception:
     st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY!")
     st.stop()
 
-# CSS GIAO DIỆN CHỦ ĐỀ XANH - TRẮNG - HỒNG
+# CSS CHỦ ĐỀ XANH - TRẮNG - HỒNG DÀNH Cho DI ĐỘNG
 st.markdown("""
 <style>
     .stApp {
@@ -76,30 +76,22 @@ st.markdown("""
     .main-title {
         text-align: center;
         color: #1e40af;
-        font-weight: bold;
-        font-size: 20px;
+        font-weight: 800;
+        font-size: 22px;
         margin-bottom: 2px;
     }
     .sub-title {
         text-align: center;
         color: #be185d;
-        font-size: 13px;
-        font-weight: 500;
+        font-size: 14px;
+        font-weight: 600;
         margin-bottom: 15px;
-    }
-    .table-header {
-        text-align: center;
-        font-weight: bold;
-        font-size: 16px;
-        color: #1e40af;
-        margin-top: 15px;
-        margin-bottom: 10px;
     }
     .block-container {
         padding-top: 1.2rem !important;
         padding-bottom: 1rem !important;
-        padding-left: 0.5rem !important;
-        padding-right: 0.5rem !important;
+        padding-left: 0.6rem !important;
+        padding-right: 0.6rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -109,8 +101,8 @@ st.markdown('<div class="sub-title">设备维修进度汇报</div>', unsafe_allo
 
 if "edit_id" not in st.session_state:
     st.session_state.edit_id = None
-if "show_image" not in st.session_state:
-    st.session_state.show_image = False
+if "show_cards" not in st.session_state:
+    st.session_state.show_cards = True
 
 edit_data = {}
 if st.session_state.edit_id:
@@ -121,7 +113,7 @@ if st.session_state.edit_id:
     except Exception:
         pass
 
-# FORM NHẬP BÁO CÁO
+# FORM NHẬP DỮ LIỆU
 with st.container():
     st.markdown("**Tên Máy / 设备名称:**")
     machine = st.text_input("machine_input", value=edit_data.get("machine_name", ""), placeholder="Nhập tên máy...", label_visibility="collapsed")
@@ -129,15 +121,15 @@ with st.container():
     st.markdown("**Nội Dung Sửa Chữa / 维修内容:**")
     c_vi = st.text_area("c_vi_input", value=edit_data.get("content_vi", ""), placeholder="Nhập nội dung hư hỏng...", height=60, label_visibility="collapsed")
 
-    st.markdown("**Giải Pháp + Quy Cách Linh Kiện / 解决方案+零件规格:**")
+    st.markdown("**Giải Pháp + Linh Kiện / 解决方案+零件:**")
     s_vi = st.text_area("s_vi_input", value=edit_data.get("solution_vi", edit_data.get("solution", "")), placeholder="Nhập phương án...", height=60, label_visibility="collapsed")
 
-    st.markdown("**Thời Gian Dự Kiến Hoàn Thành / 预计完成时间:**")
-    est_time = st.text_input("est_input", value=edit_data.get("estimated_time", ""), placeholder="Ví dụ: 2 giờ, 17:00 ngày 03/09...", label_visibility="collapsed")
+    st.markdown("**Thời Gian Dự Kiến / 预计完成时间:**")
+    est_time = st.text_input("est_input", value=edit_data.get("estimated_time", ""), placeholder="Ví dụ: 17:00 ngày 08/09...", label_visibility="collapsed")
 
     col_b1, col_b2 = st.columns(2)
     with col_b1:
-        btn_label = "Thêm Báo Cáo / 添加汇报" if not st.session_state.edit_id else "Cập Nhật Báo Cáo / 更新汇报"
+        btn_label = "Thêm Báo Cáo / 添加" if not st.session_state.edit_id else "Cập Nhật / 更新"
         if st.button(btn_label, type="primary", use_container_width=True):
             if not machine or not c_vi or not est_time:
                 st.warning("Vui lòng điền đầy đủ thông tin!")
@@ -190,22 +182,23 @@ with st.container():
                 st.rerun()
 
     with col_b2:
-        if st.button("📸 Bật Khung Coppy Ảnh Báo Cáo", use_container_width=True):
-            st.session_state.show_image = not st.session_state.show_image
+        btn_view_text = "📱 Bật Khung Dạng Thẻ Dễ Chụp" if st.session_state.show_cards else "📊 Bật Dạng Bảng Báo Cáo"
+        if st.button(btn_view_text, use_container_width=True):
+            st.session_state.show_cards = not st.session_state.show_cards
+            st.rerun()
 
-# Lấy dữ liệu báo cáo
+# Lấy danh sách báo cáo
 try:
     res = supabase.table("repair_reports").select("*").order("id", desc=True).execute()
     reports = res.data
 except Exception:
     reports = []
 
-# KHUNG COPPY / CHỤP ẢNH BÁO CÁO SIÊU NÉT (KHÔNG MỜ, KHÔNG LỖI MÃ)
-if st.session_state.show_image and reports:
-    rows_html = ""
+# HIỂN THỊ DẠNG THẺ CHUẨN ĐIỆN THOẠI (DỄ CHỤP MÀN HÌNH GỬI ZALO / WECHAT)
+if st.session_state.show_cards and reports:
+    cards_html = ""
     for idx, r in enumerate(reports, 1):
         is_done = r.get("status") == "Hoàn thành"
-        bg_cls = "#ffffff" if idx % 2 == 1 else "#fdf2f8"
         time_display = convert_utc_to_vn(r.get("created_at", ""))
         
         c_vi_val = r.get("content_vi", "")
@@ -214,113 +207,72 @@ if st.session_state.show_image and reports:
         s_vi_val = r.get("solution_vi") if r.get("solution_vi") else r.get("solution", "")
         s_zh_val = r.get("solution_zh") if r.get("solution_zh") else translate_to_zh(s_vi_val)
         
-        st_text_vi = "🟢 Đã xong" if is_done else "🟡 Đang sửa"
-        st_text_zh = "已完成" if is_done else "维修中"
+        st_badge_bg = "#dcfce7" if is_done else "#fef3c7"
         st_color = "#15803d" if is_done else "#b45309"
+        st_text = "🟢 Hoàn thành / 已完成" if is_done else "🟡 Đang sửa / 维修中"
 
-        rows_html += f"""
-        <tr style="background-color: {bg_cls};">
-            <td style="padding: 10px 4px; text-align: center; font-weight: bold; border-bottom: 1px solid #f472b6;">{idx}</td>
-            <td style="padding: 10px 4px; text-align: center; font-weight: bold; color: #1e40af; border-bottom: 1px solid #f472b6;">{r.get('machine_name', '')}</td>
-            <td style="padding: 10px 4px; text-align: center; font-size: 12px; color: #475569; border-bottom: 1px solid #f472b6;">{time_display}</td>
-            <td style="padding: 10px 6px; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: 500; color: #0f172a; font-size: 14px;">{c_vi_val}</div>
-                <div style="color: #db2777; font-size: 13px; font-weight: bold; margin-top: 2px;">{c_zh_val}</div>
-            </td>
-            <td style="padding: 10px 6px; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: 500; color: #0f172a; font-size: 14px;">{s_vi_val}</div>
-                <div style="color: #db2777; font-size: 13px; font-weight: bold; margin-top: 2px;">{s_zh_val}</div>
-            </td>
-            <td style="padding: 10px 4px; text-align: center; font-weight: 500; color: #334155; border-bottom: 1px solid #f472b6; font-size: 13px;">{r.get('estimated_time', '')}</td>
-            <td style="padding: 10px 4px; text-align: center; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: bold; color: {st_color}; font-size: 13px;">{st_text_vi}</div>
-                <div style="font-weight: bold; color: {st_color}; font-size: 12px;">{st_text_zh}</div>
-            </td>
-        </tr>
+        cards_html += f"""
+        <div style="background-color: #ffffff; border: 2px solid #be185d; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f472b6; padding-bottom: 8px; margin-bottom: 10px;">
+                <span style="font-size: 18px; font-weight: bold; color: #1e40af;">#{idx}. {r.get('machine_name', '')}</span>
+                <span style="background-color: {st_badge_bg}; color: {st_color}; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">{st_text}</span>
+            </div>
+            
+            <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">
+                🕒 Bắt đầu / 开始时间: <strong style="color: #334155;">{time_display}</strong>
+            </div>
+
+            <div style="margin-bottom: 8px; background-color: #f8fafc; padding: 8px; border-radius: 6px; border-left: 4px solid #1e40af;">
+                <div style="font-size: 12px; font-weight: bold; color: #475569;">Nội Dung Sửa / 维修内容:</div>
+                <div style="font-size: 14px; font-weight: 600; color: #0f172a; margin-top: 2px;">{c_vi_val}</div>
+                <div style="font-size: 13px; font-weight: bold; color: #be185d; margin-top: 2px;">{c_zh_val}</div>
+            </div>
+
+            <div style="margin-bottom: 8px; background-color: #f8fafc; padding: 8px; border-radius: 6px; border-left: 4px solid #be185d;">
+                <div style="font-size: 12px; font-weight: bold; color: #475569;">Giải Pháp / 解决方案:</div>
+                <div style="font-size: 14px; font-weight: 600; color: #0f172a; margin-top: 2px;">{s_vi_val}</div>
+                <div style="font-size: 13px; font-weight: bold; color: #be185d; margin-top: 2px;">{s_zh_val}</div>
+            </div>
+
+            <div style="font-size: 12px; font-weight: bold; color: #1e40af; text-align: right; margin-top: 6px;">
+                ⏱ Dự kiến / 预计完成: {r.get('estimated_time', '')}
+            </div>
+        </div>
         """
 
-    card_html = f"""
+    card_container_html = f"""
     <!DOCTYPE html>
     <html>
     <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body {{ margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; background-color: #fdf2f8; }}
-        .card {{ background-color: #fdf2f8; padding: 12px; border-radius: 10px; border: 2px solid #be185d; }}
-        .title {{ text-align: center; color: #1e40af; font-size: 18px; font-weight: bold; }}
-        .subtitle {{ text-align: center; color: #be185d; font-size: 13px; font-weight: bold; margin-bottom: 10px; }}
-        table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 6px; overflow: hidden; }}
-        th {{ background-color: #1e40af; color: white; font-size: 13px; padding: 8px 4px; text-align: center; }}
+        body {{ margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #fdf2f8; }}
+        .wrapper {{ padding: 4px; }}
     </style>
     </head>
     <body>
-        <div class="card">
-            <div class="title">BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC</div>
-            <div class="subtitle">设备维修进度汇报</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 5%;">STT<br><small>序号</small></th>
-                        <th style="width: 10%;">Máy<br><small>设备</small></th>
-                        <th style="width: 15%;">Bắt Đầu<br><small>开始时间</small></th>
-                        <th style="width: 28%;">Nội Dung Sửa Chữa<br><small>维修内容</small></th>
-                        <th style="width: 28%;">Giải Pháp<br><small>解决方案</small></th>
-                        <th style="width: 12%;">Dự Kiến<br><small>预计完成</small></th>
-                        <th style="width: 12%;">Trạng Thái<br><small>状态</small></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows_html}
-                </tbody>
-            </table>
+        <div class="wrapper">
+            {cards_html}
         </div>
     </body>
     </html>
     """
     
-    # Render an toàn tuyệt đối qua iframe
-    calc_height = 120 + len(reports) * 75
-    components.html(card_html, height=calc_height, scrolling=True)
+    # Tính chiều cao động
+    calc_height = len(reports) * 230 + 30
+    components.html(card_container_html, height=calc_height, scrolling=False)
     st.divider()
 
-# BẢNG TIẾN ĐỘ TRÊN MÀN HÌNH APP
-st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
+# DANH SÁCH BẢNG / THAO TÁC QUẢN LÝ
+st.markdown("**DANH SÁCH & QUẢN LÝ / 列表与管理:**")
 
 if not reports:
     st.info("Chưa có dữ liệu báo cáo nào.")
 else:
-    table_data = []
-    for idx, row in enumerate(reports, 1):
-        is_done = row.get("status") == "Hoàn thành"
-        time_display = convert_utc_to_vn(row.get("created_at", ""))
-
-        c_vi_val = row.get("content_vi", "")
-        c_zh_val = row.get("content_zh") if row.get("content_zh") else translate_to_zh(c_vi_val)
-        full_content = f"{c_vi_val}\n({c_zh_val})" if c_zh_val else c_vi_val
-
-        s_vi_val = row.get("solution_vi") if row.get("solution_vi") else row.get("solution", "")
-        s_zh_val = row.get("solution_zh") if row.get("solution_zh") else translate_to_zh(s_vi_val)
-        full_solution = f"{s_vi_val}\n({s_zh_val})" if s_zh_val else s_vi_val
-
-        status_str = "🟢 Đã xong / 已完成" if is_done else "🟡 Đang sửa / 维修中"
-
-        table_data.append({
-            "STT / 序号": idx,
-            "Máy / 设备": row.get("machine_name", ""),
-            "Thời Gian Bắt Đầu / 开始时间": time_display,
-            "Nội Dung Sửa Chữa / 维修内容": full_content,
-            "Giải Pháp / 解决方案": full_solution,
-            "Dự Kiến / 预计完成": row.get("estimated_time", ""),
-            "Trạng Thái / 状态": status_str
-        })
-
-    df = pd.DataFrame(table_data)
-    st.dataframe(df, use_container_width=True, hide_index=True, height=300)
-
-    # KHUNG QUẢN LÝ BẢN GHI
-    st.markdown("**Quản lý bản ghi / 操作:**")
+    # Bảng rút gọn hoặc chọn theo thẻ để thao tác
     report_options = {f"STT {i} - {r.get('machine_name')}": r.get('id') for i, r in enumerate(reports, 1)}
-    selected_option = st.selectbox("Chọn máy thao tác:", list(report_options.keys()))
+    selected_option = st.selectbox("Chọn máy cần chỉnh sửa / xóa / cập nhật:", list(report_options.keys()))
     selected_id = report_options[selected_option]
 
     selected_row = next((r for r in reports if r.get('id') == selected_id), None)
@@ -328,7 +280,7 @@ else:
 
     c_act1, c_act2, c_act3 = st.columns(3)
     with c_act1:
-        if st.button("✏️ Sửa", use_container_width=True):
+        if st.button("✏️ Sửa / 编辑", use_container_width=True):
             st.session_state.edit_id = selected_id
             st.rerun()
 
@@ -340,7 +292,7 @@ else:
             st.rerun()
 
     with c_act3:
-        if st.button("🗑️ Xóa", use_container_width=True):
+        if st.button("🗑️ Xóa / 删除", use_container_width=True):
             st.session_state["confirm_del_id"] = selected_id
 
     if st.session_state.get("confirm_del_id") == selected_id:

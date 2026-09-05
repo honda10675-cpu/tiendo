@@ -1,10 +1,10 @@
-import base64
 import json
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from supabase import Client, create_client
 
 st.set_page_config(page_title="BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC", layout="wide")
@@ -190,7 +190,7 @@ with st.container():
                 st.rerun()
 
     with col_b2:
-        if st.button("📸 Xuất Khung Báo Cáo Siêu Nét", use_container_width=True):
+        if st.button("📸 Bật Khung Coppy Ảnh Báo Cáo", use_container_width=True):
             st.session_state.show_image = not st.session_state.show_image
 
 # Lấy dữ liệu báo cáo
@@ -200,7 +200,7 @@ try:
 except Exception:
     reports = []
 
-# TẠO BẢNG HTML CARD SIÊU NÉT ĐỂ CHỤP MÀN HÌNH / LƯU
+# KHUNG COPPY / CHỤP ẢNH BÁO CÁO SIÊU NÉT (KHÔNG MỜ, KHÔNG LỖI MÃ)
 if st.session_state.show_image and reports:
     rows_html = ""
     for idx, r in enumerate(reports, 1):
@@ -220,40 +220,53 @@ if st.session_state.show_image and reports:
 
         rows_html += f"""
         <tr style="background-color: {bg_cls};">
-            <td style="padding: 12px 6px; text-align: center; font-weight: bold; border-bottom: 1px solid #f472b6;">{idx}</td>
-            <td style="padding: 12px 6px; text-align: center; font-weight: bold; color: #1e40af; border-bottom: 1px solid #f472b6;">{r.get('machine_name', '')}</td>
-            <td style="padding: 12px 6px; text-align: center; font-size: 13px; color: #475569; border-bottom: 1px solid #f472b6;">{time_display}</td>
-            <td style="padding: 12px 8px; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: 500; color: #0f172a; font-size: 15px;">{c_vi_val}</div>
-                <div style="color: #db2777; font-size: 14px; font-weight: bold; margin-top: 3px;">{c_zh_val}</div>
+            <td style="padding: 10px 4px; text-align: center; font-weight: bold; border-bottom: 1px solid #f472b6;">{idx}</td>
+            <td style="padding: 10px 4px; text-align: center; font-weight: bold; color: #1e40af; border-bottom: 1px solid #f472b6;">{r.get('machine_name', '')}</td>
+            <td style="padding: 10px 4px; text-align: center; font-size: 12px; color: #475569; border-bottom: 1px solid #f472b6;">{time_display}</td>
+            <td style="padding: 10px 6px; border-bottom: 1px solid #f472b6;">
+                <div style="font-weight: 500; color: #0f172a; font-size: 14px;">{c_vi_val}</div>
+                <div style="color: #db2777; font-size: 13px; font-weight: bold; margin-top: 2px;">{c_zh_val}</div>
             </td>
-            <td style="padding: 12px 8px; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: 500; color: #0f172a; font-size: 15px;">{s_vi_val}</div>
-                <div style="color: #db2777; font-size: 14px; font-weight: bold; margin-top: 3px;">{s_zh_val}</div>
+            <td style="padding: 10px 6px; border-bottom: 1px solid #f472b6;">
+                <div style="font-weight: 500; color: #0f172a; font-size: 14px;">{s_vi_val}</div>
+                <div style="color: #db2777; font-size: 13px; font-weight: bold; margin-top: 2px;">{s_zh_val}</div>
             </td>
-            <td style="padding: 12px 6px; text-align: center; font-weight: 500; color: #334155; border-bottom: 1px solid #f472b6;">{r.get('estimated_time', '')}</td>
-            <td style="padding: 12px 6px; text-align: center; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: bold; color: {st_color}; font-size: 14px;">{st_text_vi}</div>
-                <div style="font-weight: bold; color: {st_color}; font-size: 13px;">{st_text_zh}</div>
+            <td style="padding: 10px 4px; text-align: center; font-weight: 500; color: #334155; border-bottom: 1px solid #f472b6; font-size: 13px;">{r.get('estimated_time', '')}</td>
+            <td style="padding: 10px 4px; text-align: center; border-bottom: 1px solid #f472b6;">
+                <div style="font-weight: bold; color: {st_color}; font-size: 13px;">{st_text_vi}</div>
+                <div style="font-weight: bold; color: {st_color}; font-size: 12px;">{st_text_zh}</div>
             </td>
         </tr>
         """
 
     card_html = f"""
-    <div style="background-color: #fdf2f8; padding: 15px; border-radius: 12px; border: 2px solid #be185d; margin-bottom: 20px;">
-        <div style="text-align: center; color: #1e40af; font-size: 22px; font-weight: bold;">BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC</div>
-        <div style="text-align: center; color: #be185d; font-size: 15px; font-weight: bold; margin-bottom: 15px;">设备维修进度汇报</div>
-        <div style="overflow-x: auto;">
-            <table style="width: 100%; min-width: 900px; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden;">
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="utf-8">
+    <style>
+        body {{ margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; background-color: #fdf2f8; }}
+        .card {{ background-color: #fdf2f8; padding: 12px; border-radius: 10px; border: 2px solid #be185d; }}
+        .title {{ text-align: center; color: #1e40af; font-size: 18px; font-weight: bold; }}
+        .subtitle {{ text-align: center; color: #be185d; font-size: 13px; font-weight: bold; margin-bottom: 10px; }}
+        table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 6px; overflow: hidden; }}
+        th {{ background-color: #1e40af; color: white; font-size: 13px; padding: 8px 4px; text-align: center; }}
+    </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="title">BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC</div>
+            <div class="subtitle">设备维修进度汇报</div>
+            <table>
                 <thead>
-                    <tr style="background-color: #1e40af; color: white; font-size: 15px;">
-                        <th style="padding: 10px; width: 5%;">STT<br><small>序号</small></th>
-                        <th style="padding: 10px; width: 10%;">Máy<br><small>设备</small></th>
-                        <th style="padding: 10px; width: 15%;">Bắt Đầu<br><small>开始时间</small></th>
-                        <th style="padding: 10px; width: 28%;">Nội Dung Sửa Chữa<br><small>维修内容</small></th>
-                        <th style="padding: 10px; width: 28%;">Giải Pháp<br><small>解决方案</small></th>
-                        <th style="padding: 10px; width: 12%;">Dự Kiến<br><small>预计完成</small></th>
-                        <th style="padding: 10px; width: 12%;">Trạng Thái<br><small>状态</small></th>
+                    <tr>
+                        <th style="width: 5%;">STT<br><small>序号</small></th>
+                        <th style="width: 10%;">Máy<br><small>设备</small></th>
+                        <th style="width: 15%;">Bắt Đầu<br><small>开始时间</small></th>
+                        <th style="width: 28%;">Nội Dung Sửa Chữa<br><small>维修内容</small></th>
+                        <th style="width: 28%;">Giải Pháp<br><small>解决方案</small></th>
+                        <th style="width: 12%;">Dự Kiến<br><small>预计完成</small></th>
+                        <th style="width: 12%;">Trạng Thái<br><small>状态</small></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -261,9 +274,13 @@ if st.session_state.show_image and reports:
                 </tbody>
             </table>
         </div>
-    </div>
+    </body>
+    </html>
     """
-    st.markdown(card_html, unsafe_allow_html=True)
+    
+    # Render an toàn tuyệt đối qua iframe
+    calc_height = 120 + len(reports) * 75
+    components.html(card_html, height=calc_height, scrolling=True)
     st.divider()
 
 # BẢNG TIẾN ĐỘ TRÊN MÀN HÌNH APP

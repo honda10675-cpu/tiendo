@@ -67,7 +67,7 @@ except Exception:
     st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY!")
     st.stop()
 
-# CSS CHỦ ĐỀ XANH - TRẮNG - HỒNG
+# CSS TỐI ƯU GIAO DIỆN VÀ CUỘN NGANG HOÀN HẢO
 st.markdown("""
 <style>
     .stApp {
@@ -96,10 +96,10 @@ st.markdown("""
         margin-bottom: 10px;
     }
     .block-container {
-        padding-top: 1.2rem !important;
+        padding-top: 1rem !important;
         padding-bottom: 1rem !important;
-        padding-left: 0.5rem !important;
-        padding-right: 0.5rem !important;
+        padding-left: 0.3rem !important;
+        padding-right: 0.3rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -192,7 +192,7 @@ try:
 except Exception:
     reports = []
 
-# TẠO NÚT COPY / TẢI ẢNH BÁO CÁO TỰ ĐỘNG
+# TẠO KHUNG HIỂN THỊ CHUẨN KÈM TÍNH NĂNG TẠO ẢNH BÁO CÁO FULL CỘT
 if reports:
     rows_html = ""
     for idx, r in enumerate(reports, 1):
@@ -239,7 +239,7 @@ if reports:
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body {{ margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: transparent; }}
-        .btn-box {{ text-align: center; margin: 5px 0; }}
+        .btn-box {{ text-align: center; margin: 5px 0 10px 0; }}
         .btn-copy {{
             background-color: #be185d;
             color: white;
@@ -254,16 +254,21 @@ if reports:
         }}
         .btn-copy:active {{ background-color: #9d174d; }}
         
-        #hidden-report {{
-            position: absolute;
-            left: -9999px;
-            top: -9999px;
-            width: 1000px;
+        /* BẢNG HIỂN THỊ CÓ THANH CUỘN NGANG BẢO TỒN ĐỦ CỘT */
+        .table-scroll-container {{
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border: 1px solid #f472b6;
+            border-radius: 8px;
+            background-color: #fdf2f8;
+        }}
+        
+        .report-box {{
+            width: 950px; /* Cố định chiều rộng đủ cho 7 cột */
             box-sizing: border-box;
             background-color: #fdf2f8;
-            padding: 15px;
-            border-radius: 10px;
-            border: 2px solid #be185d;
+            padding: 12px;
         }}
         .title {{ text-align: center; color: #1e40af; font-size: 18px; font-weight: bold; }}
         .subtitle {{ text-align: center; color: #be185d; font-size: 13px; font-weight: bold; margin-bottom: 10px; }}
@@ -274,39 +279,41 @@ if reports:
     </head>
     <body>
         <div class="btn-box">
-            <button class="btn-copy" onclick="captureAndCopy()">📸 BẬT KHUNG COPY / TẢI ẢNH BÁO CÁO</button>
+            <button class="btn-copy" onclick="captureAndCopy()">📸 BẬT KHUNG COPY / TẢI ẢNH BÁO CÁO FULL CỘT</button>
         </div>
 
-        <div id="hidden-report">
-            <div class="title">BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC</div>
-            <div class="subtitle">设备维修进度汇报</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 5%;">STT<br><small>序号</small></th>
-                        <th style="width: 10%;">Máy<br><small>设备</small></th>
-                        <th style="width: 15%;">Bắt Đầu<br><small>开始时间</small></th>
-                        <th style="width: 26%;">Nội Dung Sửa Chữa<br><small>维修内容</small></th>
-                        <th style="width: 26%;">Giải Pháp<br><small>解决方案</small></th>
-                        <th style="width: 9%;">Dự Kiến<br><small>预计完成</small></th>
-                        <th style="width: 9%;">Trạng Thái<br><small>状态</small></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows_html}
-                </tbody>
-            </table>
+        <div class="table-scroll-container">
+            <div id="capture-target" class="report-box">
+                <div class="title">BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC</div>
+                <div class="subtitle">设备维修进度汇报</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 5%;">STT<br><small>序号</small></th>
+                            <th style="width: 10%;">Máy<br><small>设备</small></th>
+                            <th style="width: 15%;">Bắt Đầu<br><small>开始时间</small></th>
+                            <th style="width: 25%;">Nội Dung Sửa Chữa<br><small>维修内容</small></th>
+                            <th style="width: 25%;">Giải Pháp<br><small>解决方案</small></th>
+                            <th style="width: 10%;">Dự Kiến<br><small>预计完成</small></th>
+                            <th style="width: 10%;">Trạng Thái<br><small>状态</small></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows_html}
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <script>
         function captureAndCopy() {{
-            var element = document.getElementById('hidden-report');
-            html2canvas(element, {{ scale: 2 }}).then(function(canvas) {{
+            var element = document.getElementById('capture-target');
+            html2canvas(element, {{ scale: 2, windowWidth: 1000 }}).then(function(canvas) {{
                 canvas.toBlob(function(blob) {{
                     if (navigator.clipboard && window.ClipboardItem) {{
                         var item = new ClipboardItem({{ "image/png": blob }});
                         navigator.clipboard.write([item]).then(function() {{
-                            alert("✅ Đã sao chép ảnh báo cáo đầy đủ! Mở Zalo/WeChat bấm Dán (Paste) là xong!");
+                            alert("✅ Đã sao chép ảnh báo cáo FULL 7 CỘT! Anh sang Zalo/WeChat bấm Dán (Paste) là xong nhé!");
                         }}).catch(function(err) {{
                             downloadImage(canvas);
                         }});
@@ -319,52 +326,19 @@ if reports:
 
         function downloadImage(canvas) {{
             var link = document.createElement('a');
-            link.download = 'Bao_Cao_Tien_Do.png';
+            link.download = 'Bao_Cao_Tien_Do_Full.png';
             link.href = canvas.toDataURL('image/png');
             link.click();
-            alert("📥 Ảnh báo cáo đã được tải về máy! Anh vào Zalo/WeChat gửi ảnh vừa tải nhé!");
+            alert("📥 Ảnh báo cáo đã tải về máy! Anh gửi ảnh vừa tải qua Zalo/WeChat nhé!");
         }}
         </script>
     </body>
     </html>
     """
-    components.html(export_html, height=65)
+    components.html(export_html, height=380, scrolling=True)
 
-# BẢNG TIẾN ĐỘ TRÊN MÀN HÌNH APP
-st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
-
-if not reports:
-    st.info("Chưa có dữ liệu báo cáo nào.")
-else:
-    table_data = []
-    for idx, row in enumerate(reports, 1):
-        is_done = row.get("status") == "Hoàn thành"
-        time_display = convert_utc_to_vn(row.get("created_at", ""))
-
-        c_vi_val = row.get("content_vi", "")
-        c_zh_val = row.get("content_zh") if row.get("content_zh") else translate_to_zh(c_vi_val)
-        full_content = f"{c_vi_val}\n({c_zh_val})" if c_zh_val else c_vi_val
-
-        s_vi_val = row.get("solution_vi") if row.get("solution_vi") else row.get("solution", "")
-        s_zh_val = row.get("solution_zh") if row.get("solution_zh") else translate_to_zh(s_vi_val)
-        full_solution = f"{s_vi_val}\n({s_zh_val})" if s_zh_val else s_vi_val
-
-        status_str = "🟢 Đã xong / 已完成" if is_done else "🟡 Đang sửa / 维修中"
-
-        table_data.append({
-            "STT / 序号": idx,
-            "Máy / 设备": row.get("machine_name", ""),
-            "Thời Gian Bắt Đầu / 开始时间": time_display,
-            "Nội Dung Sửa Chữa / 维修内容": full_content,
-            "Giải Pháp / 解决方案": full_solution,
-            "Dự Kiến / 预计完成": row.get("estimated_time", ""),
-            "Trạng Thái / 状态": status_str
-        })
-
-    df = pd.DataFrame(table_data)
-    st.dataframe(df, use_container_width=True, hide_index=True, height=300)
-
-    # KHUNG QUẢN LÝ BẢN GHI
+# KHUNG QUẢN LÝ BẢN GHI
+if reports:
     st.markdown("**Quản lý bản ghi / 操作:**")
     report_options = {f"STT {i} - {r.get('machine_name')}": r.get('id') for i, r in enumerate(reports, 1)}
     selected_option = st.selectbox("Chọn máy thao tác:", list(report_options.keys()))

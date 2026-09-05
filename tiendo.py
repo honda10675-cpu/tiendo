@@ -3,7 +3,6 @@ import json
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
-import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 from supabase import Client, create_client
@@ -59,73 +58,6 @@ def translate_to_zh(text):
 
     return ""
 
-# Hàm tạo file hình ảnh PNG từ dữ liệu bảng
-def generate_report_image(reports_data):
-    table_rows = []
-    for idx, r in enumerate(reports_data, 1):
-        is_done = r.get("status") == "Hoàn thành"
-        time_display = convert_utc_to_vn(r.get("created_at", ""))
-        
-        c_vi_val = r.get("content_vi", "")
-        c_zh_val = r.get("content_zh") if r.get("content_zh") else translate_to_zh(c_vi_val)
-        full_c = f"{c_vi_val}\n({c_zh_val})" if c_zh_val else c_vi_val
-
-        s_vi_val = r.get("solution_vi") if r.get("solution_vi") else r.get("solution", "")
-        s_zh_val = r.get("solution_zh") if r.get("solution_zh") else translate_to_zh(s_vi_val)
-        full_s = f"{s_vi_val}\n({s_zh_val})" if s_zh_val else s_vi_val
-
-        st_text = "Đã xong / 已完成" if is_done else "Đang sửa / 维修中"
-
-        table_rows.append([
-            idx,
-            r.get("machine_name", ""),
-            time_display,
-            full_c,
-            full_s,
-            r.get("estimated_time", ""),
-            st_text
-        ])
-
-    columns = [
-        "STT\n序号", "Máy\n设备", "Thời Gian Bắt Đầu\n开始时间",
-        "Nội Dung Sửa Chữa\n维修内容", "Giải Pháp\n解决方案",
-        "Dự Kiến\n预计完成", "Trạng Thái\n状态"
-    ]
-
-    fig, ax = plt.subplots(figsize=(12, max(2.5, len(table_rows) * 0.9)), dpi=200)
-    ax.axis('off')
-
-    table = ax.table(
-        cellText=table_rows,
-        colLabels=columns,
-        cellLoc='center',
-        loc='center'
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(9)
-    table.scale(1.1, 2.0)
-
-    for (row, col), cell in table.get_celld().items():
-        if row == 0:
-            cell.set_facecolor('#1e40af')
-            cell.set_text_props(weight='bold', color='#ffffff')
-        else:
-            if row % 2 == 0:
-                cell.set_facecolor('#f8fafc')
-            else:
-                cell.set_facecolor('#ffffff')
-            if col in [3, 4]:
-                cell.set_text_props(ha='left')
-
-    plt.title("BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC / 设备维修进度汇报", fontsize=13, fontweight='bold', pad=15, color='#1e40af')
-    plt.tight_layout()
-
-    buf = io.BytesIO()
-    plt.savefig(buf, format="png", bbox_inches='tight')
-    plt.close(fig)
-    buf.seek(0)
-    return buf.getvalue()
-
 # Kết nối Supabase
 try:
     url = st.secrets["SUPABASE_URL"]
@@ -135,7 +67,7 @@ except Exception:
     st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY!")
     st.stop()
 
-# CSS tối ưu
+# CSS giao diện
 st.markdown("""
 <style>
     .main-title {
@@ -258,19 +190,19 @@ with st.container():
     except Exception:
         reports = []
 
-    # XỬ LÝ NÚT TẢI BÁO CÁO DẠNG HÌNH ẢNH (PNG)
     with col_b2:
         if reports:
-            img_bytes = generate_report_image(reports)
+            # Tạo file CSV tiêu chuẩn mở nhanh ra Excel/Hình ảnh báo cáo
+            csv_data = pd.DataFrame(reports).to_csv(index=False).encode('utf-8-sig')
             st.download_button(
-                label="Tải Báo Cáo / 下载图片",
-                data=img_bytes,
-                file_name=f"Bao_Cao_Tien_Do_{datetime.now().strftime('%Y%m%d_%H%M')}.png",
-                mime="image/png",
+                label="Tải Báo Cáo / 下载汇报",
+                data=csv_data,
+                file_name=f"Bao_Cao_Tien_Do_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv",
                 use_container_width=True
             )
         else:
-            st.button("Tải Báo Cáo / 下载图片", disabled=True, use_container_width=True)
+            st.button("Tải Báo Cáo / 下载汇报", disabled=True, use_container_width=True)
 
 # BẢNG TIẾN ĐỘ TƯƠNG THÍCH ĐIỆN THOẠI
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)

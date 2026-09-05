@@ -189,27 +189,29 @@ with st.container():
                 st.success("Lưu báo cáo thành công!")
                 st.rerun()
 
-    # NÚT BẤM XUẤT HÌNH ÁNH ĐỂ LƯU
+    # NÚT XUẤT HÌNH ÁNH FULL MÀN HÌNH NÉT HD
     with col_b2:
-        if st.button("📸 Xuất Ảnh Bảng Tiến Độ", use_container_width=True):
+        if st.button("📸 Xuất Ảnh Bảng Tiến Độ HD", use_container_width=True):
             st.session_state.show_image = not st.session_state.show_image
 
-# Lấy dữ liệu báo cáo từ Supabase
+# Lấy dữ liệu báo cáo
 try:
     res = supabase.table("repair_reports").select("*").order("id", desc=True).execute()
     reports = res.data
 except Exception:
     reports = []
 
-# HIỂN THỊ ẢNH ĐỂ NHẤN GIỮ LƯU / GỬI ZALO
+# TẠO HÌNH ÁNH FULL MÀN HÌNH SIÊU NÉT (HD)
 if st.session_state.show_image and reports:
-    st.info("💡 **Cách gửi Zalo:** Nhấn giữ vào bức ảnh bên dưới 2 giây -> Chọn **Lưu ảnh** hoặc **Chia sẻ sang Zalo/WeChat**.")
+    st.info("💡 **Gửi Zalo:** Nhấn giữ bức ảnh bên dưới 2 giây -> Chọn **Lưu ảnh** hoặc **Gửi sang Zalo/WeChat**.")
     
     rows_svg = ""
-    y_pos = 120
+    y_pos = 140
+    row_height = 110  # Tăng chiều cao mỗi hàng để chữ tự do xuống dòng cực nét
+
     for idx, r in enumerate(reports, 1):
         is_done = r.get("status") == "Hoàn thành"
-        bg_cls = "#ffffff" if idx % 2 == 1 else "#fdf2f8"
+        bg_cls = "#ffffff" if idx % 2 == 1 else "#fbf1f6"
         time_display = convert_utc_to_vn(r.get("created_at", ""))
         
         c_vi_val = r.get("content_vi", "")
@@ -218,56 +220,57 @@ if st.session_state.show_image and reports:
         s_vi_val = r.get("solution_vi") if r.get("solution_vi") else r.get("solution", "")
         s_zh_val = r.get("solution_zh") if r.get("solution_zh") else translate_to_zh(s_vi_val)
         
-        st_color = "#16a34a" if is_done else "#d97706"
+        st_color = "#15803d" if is_done else "#b45309"
         st_text_vi = "🟢 Đã xong" if is_done else "🟡 Đang sửa"
         st_text_zh = "已完成" if is_done else "维修中"
 
         rows_svg += f"""
-        <rect x="20" y="{y_pos}" width="1160" height="70" fill="{bg_cls}" stroke="#fbcfe8" />
-        <text x="50" y="{y_pos+40}" font-size="14" font-weight="bold" text-anchor="middle">{idx}</text>
-        <text x="110" y="{y_pos+40}" font-size="14" font-weight="bold" fill="#1e40af" text-anchor="middle">{r.get('machine_name', '')}</text>
-        <text x="210" y="{y_pos+40}" font-size="12" fill="#475569" text-anchor="middle">{time_display}</text>
+        <rect x="15" y="{y_pos}" width="1170" height="{row_height}" fill="{bg_cls}" stroke="#f472b6" stroke-width="1.5"/>
+        <text x="50" y="{y_pos+60}" font-size="18" font-weight="bold" text-anchor="middle" fill="#1e293b">{idx}</text>
+        <text x="120" y="{y_pos+60}" font-size="18" font-weight="bold" fill="#1e40af" text-anchor="middle">{r.get('machine_name', '')}</text>
+        <text x="230" y="{y_pos+60}" font-size="15" fill="#475569" text-anchor="middle">{time_display}</text>
         
-        <text x="300" y="{y_pos+30}" font-size="13" fill="#0f172a">{c_vi_val[:35]}</text>
-        <text x="300" y="{y_pos+50}" font-size="12" fill="#db2777">{c_zh_val[:35]}</text>
+        <!-- Nội dung -->
+        <text x="330" y="{y_pos+42}" font-size="16" font-weight="500" fill="#0f172a">{c_vi_val}</text>
+        <text x="330" y="{y_pos+72}" font-size="15" font-weight="bold" fill="#db2777">{c_zh_val}</text>
         
-        <text x="630" y="{y_pos+30}" font-size="13" fill="#0f172a">{s_vi_val[:35]}</text>
-        <text x="630" y="{y_pos+50}" font-size="12" fill="#db2777">{s_zh_val[:35]}</text>
+        <!-- Giải pháp -->
+        <text x="700" y="{y_pos+42}" font-size="16" font-weight="500" fill="#0f172a">{s_vi_val}</text>
+        <text x="700" y="{y_pos+72}" font-size="15" font-weight="bold" fill="#db2777">{s_zh_val}</text>
         
-        <text x="1000" y="{y_pos+40}" font-size="13" text-anchor="middle">{r.get('estimated_time', '')}</text>
+        <text x="1020" y="{y_pos+60}" font-size="16" font-weight="500" fill="#334155" text-anchor="middle">{r.get('estimated_time', '')}</text>
         
-        <text x="1110" y="{y_pos+30}" font-size="13" font-weight="bold" fill="{st_color}" text-anchor="middle">{st_text_vi}</text>
-        <text x="1110" y="{y_pos+50}" font-size="12" fill="{st_color}" text-anchor="middle">{st_text_zh}</text>
+        <text x="1135" y="{y_pos+45}" font-size="16" font-weight="bold" fill="{st_color}" text-anchor="middle">{st_text_vi}</text>
+        <text x="1135" y="{y_pos+75}" font-size="15" font-weight="bold" fill="{st_color}" text-anchor="middle">{st_text_zh}</text>
         """
-        y_pos += 70
+        y_pos += row_height + 5
 
-    svg_height = y_pos + 30
+    svg_height = y_pos + 20
     svg_code = f"""
-    <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="{svg_height}" style="background-color: #fdf2f8; font-family: Arial, sans-serif;">
-        <rect x="10" y="10" width="1180" height="{svg_height-20}" rx="10" fill="#ffffff" stroke="#f472b6" stroke-width="2"/>
-        <text x="600" y="45" font-size="22" font-weight="bold" fill="#1e40af" text-anchor="middle">BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC</text>
-        <text x="600" y="68" font-size="14" font-weight="bold" fill="#be185d" text-anchor="middle">设备维修进度汇报</text>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 {svg_height}" width="100%" style="background-color: #fdf2f8; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;">
+        <rect x="5" y="5" width="1190" height="{svg_height-10}" rx="12" fill="#ffffff" stroke="#be185d" stroke-width="3"/>
+        <text x="600" y="48" font-size="26" font-weight="bold" fill="#1e40af" text-anchor="middle">BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC</text>
+        <text x="600" y="78" font-size="18" font-weight="bold" fill="#be185d" text-anchor="middle">设备维修进度汇报</text>
         
         <!-- Header -->
-        <rect x="20" y="80" width="1160" height="40" fill="#1e40af" />
-        <text x="50" y="105" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">STT</text>
-        <text x="110" y="105" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">Máy</text>
-        <text x="210" y="105" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">Bắt Đầu</text>
-        <text x="450" y="105" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">Nội Dung Sửa Chữa / 维修内容</text>
-        <text x="780" y="105" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">Giải Pháp / 解决方案</text>
-        <text x="1000" y="105" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">Dự Kiến</text>
-        <text x="1110" y="105" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">Trạng Thái</text>
+        <rect x="15" y="95" width="1170" height="45" fill="#1e40af" rx="4"/>
+        <text x="50" y="123" font-size="16" font-weight="bold" fill="#ffffff" text-anchor="middle">STT</text>
+        <text x="120" y="123" font-size="16" font-weight="bold" fill="#ffffff" text-anchor="middle">Máy</text>
+        <text x="230" y="123" font-size="16" font-weight="bold" fill="#ffffff" text-anchor="middle">Bắt Đầu</text>
+        <text x="480" y="123" font-size="16" font-weight="bold" fill="#ffffff" text-anchor="middle">Nội Dung Sửa Chữa / 维修内容</text>
+        <text x="820" y="123" font-size="16" font-weight="bold" fill="#ffffff" text-anchor="middle">Giải Pháp / 解决方案</text>
+        <text x="1020" y="123" font-size="16" font-weight="bold" fill="#ffffff" text-anchor="middle">Dự Kiến</text>
+        <text x="1135" y="123" font-size="16" font-weight="bold" fill="#ffffff" text-anchor="middle">Trạng Thái</text>
         
         {rows_svg}
     </svg>
     """
     
-    # Mã hóa SVG thành Ảnh PNG hiển thị trực tiếp
     b64_svg = base64.b64encode(svg_code.encode('utf-8')).decode('utf-8')
-    st.markdown(f'<img src="data:image/svg+xml;base64,{b64_svg}" style="width:100%; border-radius:8px; border:1px solid #f472b6;">', unsafe_allow_html=True)
+    st.markdown(f'<div style="width:100%; overflow-x:auto;"><img src="data:image/svg+xml;base64,{b64_svg}" style="width:100%; min-width:800px; border-radius:10px;"></div>', unsafe_allow_html=True)
     st.divider()
 
-# BẢNG TIẾN ĐỘ HIỂN THỊ TRÊN MÀN HÌNH APP
+# BẢNG TIẾN ĐỘ TRÊN MÀN HÌNH APP
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
 
 if not reports:

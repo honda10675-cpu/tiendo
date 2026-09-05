@@ -205,21 +205,21 @@ if reports:
 
         rows_html += f"""
         <tr style="background-color: {bg_cls};">
-            <td style="padding: 8px 4px; text-align: center; font-weight: bold; border-bottom: 1px solid #cbd5e1; font-size: 12px;">{idx}</td>
-            <td style="padding: 8px 4px; text-align: center; font-weight: bold; color: #1e40af; border-bottom: 1px solid #cbd5e1; font-size: 13px;">{r.get('machine_name', '')}</td>
-            <td style="padding: 8px 4px; text-align: center; font-size: 11px; color: #475569; border-bottom: 1px solid #cbd5e1;">{time_display}</td>
-            <td style="padding: 8px 6px; border-bottom: 1px solid #cbd5e1;">
-                <div style="font-weight: 600; color: #0f172a; font-size: 12px; line-height: 1.3;">{c_vi_val}</div>
-                <div style="color: #d97706; font-size: 11px; font-weight: bold; margin-top: 2px;">{c_zh_val}</div>
+            <td style="padding: 10px 6px; text-align: center; font-weight: bold; border-bottom: 1px solid #cbd5e1; font-size: 13px;">{idx}</td>
+            <td style="padding: 10px 6px; text-align: center; font-weight: bold; color: #1e40af; border-bottom: 1px solid #cbd5e1; font-size: 14px;">{r.get('machine_name', '')}</td>
+            <td style="padding: 10px 6px; text-align: center; font-size: 12px; color: #475569; border-bottom: 1px solid #cbd5e1;">{time_display}</td>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #cbd5e1;">
+                <div style="font-weight: 600; color: #0f172a; font-size: 13px; line-height: 1.3;">{c_vi_val}</div>
+                <div style="color: #d97706; font-size: 12px; font-weight: bold; margin-top: 3px;">{c_zh_val}</div>
             </td>
-            <td style="padding: 8px 6px; border-bottom: 1px solid #cbd5e1;">
-                <div style="font-weight: 600; color: #0f172a; font-size: 12px; line-height: 1.3;">{s_vi_val}</div>
-                <div style="color: #d97706; font-size: 11px; font-weight: bold; margin-top: 2px;">{s_zh_val}</div>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #cbd5e1;">
+                <div style="font-weight: 600; color: #0f172a; font-size: 13px; line-height: 1.3;">{s_vi_val}</div>
+                <div style="color: #d97706; font-size: 12px; font-weight: bold; margin-top: 3px;">{s_zh_val}</div>
             </td>
-            <td style="padding: 8px 4px; text-align: center; font-weight: 600; color: #334155; border-bottom: 1px solid #cbd5e1; font-size: 11px;">{r.get('estimated_time', '')}</td>
-            <td style="padding: 8px 4px; text-align: center; border-bottom: 1px solid #cbd5e1;">
-                <div style="font-weight: bold; color: {st_color}; font-size: 11px;">{st_text_vi}</div>
-                <div style="font-weight: bold; color: {st_color}; font-size: 10px;">{st_text_zh}</div>
+            <td style="padding: 10px 6px; text-align: center; font-weight: 600; color: #334155; border-bottom: 1px solid #cbd5e1; font-size: 12px;">{r.get('estimated_time', '')}</td>
+            <td style="padding: 10px 6px; text-align: center; border-bottom: 1px solid #cbd5e1;">
+                <div style="font-weight: bold; color: {st_color}; font-size: 12px;">{st_text_vi}</div>
+                <div style="font-weight: bold; color: {st_color}; font-size: 11px;">{st_text_zh}</div>
             </td>
         </tr>
         """
@@ -252,18 +252,18 @@ if reports:
         .table-wrapper {{ width: 100%; overflow-x: auto; }}
         
         #capture-target {{
-            min-width: 850px;
+            min-width: 1200px;
             background-color: #ffffff;
-            padding: 12px;
+            padding: 16px;
             border: 2px solid #1e40af;
             border-radius: 8px;
         }}
         
-        .title {{ text-align: center; color: #1e40af; font-size: 18px; font-weight: bold; }}
-        .subtitle {{ text-align: center; color: #be185d; font-size: 12px; font-weight: bold; margin-bottom: 10px; }}
+        .title {{ text-align: center; color: #1e40af; font-size: 22px; font-weight: bold; }}
+        .subtitle {{ text-align: center; color: #be185d; font-size: 14px; font-weight: bold; margin-bottom: 12px; }}
         
         table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 4px; overflow: hidden; table-layout: fixed; }}
-        th {{ background-color: #1e40af; color: white; font-size: 12px; padding: 8px 2px; text-align: center; }}
+        th {{ background-color: #1e40af; color: white; font-size: 13px; padding: 10px 4px; text-align: center; }}
         td {{ word-break: break-word; overflow-wrap: break-word; }}
     </style>
     </head>
@@ -279,13 +279,13 @@ if reports:
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 6%;">STT<br><small>序号</small></th>
-                            <th style="width: 12%;">Máy<br><small>设备</small></th>
+                            <th style="width: 5%;">STT<br><small>序号</small></th>
+                            <th style="width: 11%;">Máy<br><small>设备</small></th>
                             <th style="width: 15%;">Bắt Đầu<br><small>开始时间</small></th>
-                            <th style="width: 27%;">Nội Dung<br><small>维修内容</small></th>
-                            <th style="width: 25%;">Giải Pháp<br><small>解决方案</small></th>
+                            <th style="width: 28%;">Nội Dung<br><small>维修内容</small></th>
+                            <th style="width: 27%;">Giải Pháp<br><small>解决方案</small></th>
                             <th style="width: 10%;">Dự Kiến<br><small>预计完成</small></th>
-                            <th style="width: 10%;">Trạng Thái<br><small>状态</small></th>
+                            <th style="width: 9%;">Trạng Thái<br><small>状态</small></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -298,7 +298,7 @@ if reports:
         <script>
         function downloadImage() {{
             var element = document.getElementById('capture-target');
-            html2canvas(element, {{ scale: 2 }}).then(function(canvas) {{
+            html2canvas(element, {{ scale: 3.5, useCORS: true }}).then(function(canvas) {{
                 var link = document.createElement('a');
                 link.download = 'Bao_Cao_Tien_Do.png';
                 link.href = canvas.toDataURL('image/png');
@@ -310,16 +310,15 @@ if reports:
     </html>
     """
     
-    dynamic_height = max(450, len(reports) * 80 + 130)
+    dynamic_height = max(450, len(reports) * 85 + 140)
     components.html(export_html, height=dynamic_height, scrolling=True)
 
-# PHẦN QUẢN LÝ THAO TÁC (ĐÃ CHỌN MÁY & HÀNG NGANG)
+# PHẦN QUẢN LÝ THAO TÁC
 st.markdown('<div class="table-header">QUẢN LÝ THAO TÁC / 操作管理</div>', unsafe_allow_html=True)
 
 if not reports:
     st.info("Chưa có dữ liệu báo cáo nào.")
 else:
-    # 1. Chọn máy muốn thao tác
     machine_options = {f"#{i+1} - {r.get('machine_name', '')} ({r.get('status', 'Đang sửa')})": r for i, r in enumerate(reports)}
     selected_machine_label = st.selectbox("Chọn máy muốn thao tác / 选择要操作的设备:", list(machine_options.keys()))
     
@@ -327,7 +326,6 @@ else:
     row_id = selected_row.get("id")
     is_done = selected_row.get("status") == "Hoàn thành"
 
-    # 2. Hiển thị 3 nút thao tác trên 1 HÀNG NGANG
     c_btn1, c_btn2, c_btn3 = st.columns(3)
 
     with c_btn1:
@@ -346,7 +344,6 @@ else:
         if st.button("🗑️ Xóa Báo Cáo", use_container_width=True, key=f"del_sel_{row_id}"):
             st.session_state[f"confirm_del_{row_id}"] = True
 
-    # Xác nhận xóa mật khẩu 230
     if st.session_state.get(f"confirm_del_{row_id}"):
         pwd = st.text_input("Nhập mật khẩu xóa (230):", type="password", key=f"pwd_{row_id}")
         col_pass1, col_pass2 = st.columns(2)

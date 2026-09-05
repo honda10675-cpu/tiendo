@@ -67,7 +67,7 @@ except Exception:
     st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY!")
     st.stop()
 
-# CSS TỐI ƯU GIAO DIỆN VÀ CUỘN NGANG HOÀN HẢO
+# CSS GIAO DIỆN HỒNG - XANH TỐI ƯU
 st.markdown("""
 <style>
     .stApp {
@@ -192,7 +192,7 @@ try:
 except Exception:
     reports = []
 
-# TẠO KHUNG HIỂN THỊ CHUẨN KÈM TÍNH NĂNG TẠO ẢNH BÁO CÁO FULL CỘT
+# TẠO KHUNG BÁO CÁO XOAY NGANG TỰ ĐỘNG CHO ĐIỆN THOẠI
 if reports:
     rows_html = ""
     for idx, r in enumerate(reports, 1):
@@ -212,21 +212,21 @@ if reports:
 
         rows_html += f"""
         <tr style="background-color: {bg_cls};">
-            <td style="padding: 8px 4px; text-align: center; font-weight: bold; border-bottom: 1px solid #f472b6; font-size: 11px;">{idx}</td>
-            <td style="padding: 8px 4px; text-align: center; font-weight: bold; color: #1e40af; border-bottom: 1px solid #f472b6; font-size: 11px;">{r.get('machine_name', '')}</td>
-            <td style="padding: 8px 4px; text-align: center; font-size: 10px; color: #475569; border-bottom: 1px solid #f472b6;">{time_display}</td>
-            <td style="padding: 8px 4px; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: 500; color: #0f172a; font-size: 11px;">{c_vi_val}</div>
-                <div style="color: #db2777; font-size: 10px; font-weight: bold; margin-top: 2px;">{c_zh_val}</div>
+            <td style="padding: 10px 6px; text-align: center; font-weight: bold; border-bottom: 1px solid #f472b6; font-size: 13px;">{idx}</td>
+            <td style="padding: 10px 6px; text-align: center; font-weight: bold; color: #1e40af; border-bottom: 1px solid #f472b6; font-size: 14px;">{r.get('machine_name', '')}</td>
+            <td style="padding: 10px 6px; text-align: center; font-size: 12px; color: #475569; border-bottom: 1px solid #f472b6;">{time_display}</td>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #f472b6;">
+                <div style="font-weight: 600; color: #0f172a; font-size: 13px; line-height: 1.4;">{c_vi_val}</div>
+                <div style="color: #db2777; font-size: 12px; font-weight: bold; margin-top: 3px;">{c_zh_val}</div>
             </td>
-            <td style="padding: 8px 4px; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: 500; color: #0f172a; font-size: 11px;">{s_vi_val}</div>
-                <div style="color: #db2777; font-size: 10px; font-weight: bold; margin-top: 2px;">{s_zh_val}</div>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #f472b6;">
+                <div style="font-weight: 600; color: #0f172a; font-size: 13px; line-height: 1.4;">{s_vi_val}</div>
+                <div style="color: #db2777; font-size: 12px; font-weight: bold; margin-top: 3px;">{s_zh_val}</div>
             </td>
-            <td style="padding: 8px 4px; text-align: center; font-weight: 500; color: #334155; border-bottom: 1px solid #f472b6; font-size: 10px;">{r.get('estimated_time', '')}</td>
-            <td style="padding: 8px 4px; text-align: center; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: bold; color: {st_color}; font-size: 10px;">{st_text_vi}</div>
-                <div style="font-weight: bold; color: {st_color}; font-size: 9px;">{st_text_zh}</div>
+            <td style="padding: 10px 6px; text-align: center; font-weight: 600; color: #334155; border-bottom: 1px solid #f472b6; font-size: 12px;">{r.get('estimated_time', '')}</td>
+            <td style="padding: 10px 6px; text-align: center; border-bottom: 1px solid #f472b6;">
+                <div style="font-weight: bold; color: {st_color}; font-size: 12px;">{st_text_vi}</div>
+                <div style="font-weight: bold; color: {st_color}; font-size: 11px;">{st_text_zh}</div>
             </td>
         </tr>
         """
@@ -254,36 +254,36 @@ if reports:
         }}
         .btn-copy:active {{ background-color: #9d174d; }}
         
-        /* BẢNG HIỂN THỊ CÓ THANH CUỘN NGANG BẢO TỒN ĐỦ CỘT */
+        /* KHUNG CUỘN XEM VÀ XUẤT ẢNH DẠNG NGANG FULL CỘT */
         .table-scroll-container {{
             width: 100%;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
-            border: 1px solid #f472b6;
+            border: 2px solid #be185d;
             border-radius: 8px;
             background-color: #fdf2f8;
         }}
         
-        .report-box {{
-            width: 950px; /* Cố định chiều rộng đủ cho 7 cột */
+        .report-box-landscape {{
+            width: 1200px; /* Độ rộng khổ ngang chuẩn giúp hiển thị thoáng chữ, đẹp như ảnh mẫu */
             box-sizing: border-box;
             background-color: #fdf2f8;
-            padding: 12px;
+            padding: 20px;
         }}
-        .title {{ text-align: center; color: #1e40af; font-size: 18px; font-weight: bold; }}
-        .subtitle {{ text-align: center; color: #be185d; font-size: 13px; font-weight: bold; margin-bottom: 10px; }}
-        table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 6px; overflow: hidden; table-layout: fixed; }}
-        th {{ background-color: #1e40af; color: white; font-size: 11px; padding: 6px 2px; text-align: center; word-wrap: break-word; }}
+        .title {{ text-align: center; color: #1e40af; font-size: 22px; font-weight: bold; }}
+        .subtitle {{ text-align: center; color: #be185d; font-size: 15px; font-weight: bold; margin-bottom: 15px; }}
+        table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 6px; overflow: hidden; table-layout: fixed; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }}
+        th {{ background-color: #1e40af; color: white; font-size: 13px; padding: 10px 4px; text-align: center; word-wrap: break-word; }}
         td {{ word-wrap: break-word; overflow-wrap: break-word; }}
     </style>
     </head>
     <body>
         <div class="btn-box">
-            <button class="btn-copy" onclick="captureAndCopy()">📸 BẬT KHUNG COPY / TẢI ẢNH BÁO CÁO FULL CỘT</button>
+            <button class="btn-copy" onclick="captureAndCopy()">📸 TẠO & SAO CHÉP ẢNH NGANG FULL CỘT (TỐI ƯU ĐIỆN THOẠI)</button>
         </div>
 
         <div class="table-scroll-container">
-            <div id="capture-target" class="report-box">
+            <div id="capture-target" class="report-box-landscape">
                 <div class="title">BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC</div>
                 <div class="subtitle">设备维修进度汇报</div>
                 <table>
@@ -291,11 +291,11 @@ if reports:
                         <tr>
                             <th style="width: 5%;">STT<br><small>序号</small></th>
                             <th style="width: 10%;">Máy<br><small>设备</small></th>
-                            <th style="width: 15%;">Bắt Đầu<br><small>开始时间</small></th>
-                            <th style="width: 25%;">Nội Dung Sửa Chữa<br><small>维修内容</small></th>
-                            <th style="width: 25%;">Giải Pháp<br><small>解决方案</small></th>
-                            <th style="width: 10%;">Dự Kiến<br><small>预计完成</small></th>
-                            <th style="width: 10%;">Trạng Thái<br><small>状态</small></th>
+                            <th style="width: 13%;">Bắt Đầu<br><small>开始时间</small></th>
+                            <th style="width: 27%;">Nội Dung Sửa Chữa<br><small>维修内容</small></th>
+                            <th style="width: 27%;">Giải Pháp<br><small>解决方案</small></th>
+                            <th style="width: 9%;">Dự Kiến<br><small>预计完成</small></th>
+                            <th style="width: 9%;">Trạng Thái<br><small>状态</small></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -308,12 +308,12 @@ if reports:
         <script>
         function captureAndCopy() {{
             var element = document.getElementById('capture-target');
-            html2canvas(element, {{ scale: 2, windowWidth: 1000 }}).then(function(canvas) {{
+            html2canvas(element, {{ scale: 2, windowWidth: 1250 }}).then(function(canvas) {{
                 canvas.toBlob(function(blob) {{
                     if (navigator.clipboard && window.ClipboardItem) {{
                         var item = new ClipboardItem({{ "image/png": blob }});
                         navigator.clipboard.write([item]).then(function() {{
-                            alert("✅ Đã sao chép ảnh báo cáo FULL 7 CỘT! Anh sang Zalo/WeChat bấm Dán (Paste) là xong nhé!");
+                            alert("✅ Đã sao chép ảnh báo cáo DẠNG NGANG FULL CỘT! Anh mở Zalo/WeChat bấm Dán (Paste) là xong nhé!");
                         }}).catch(function(err) {{
                             downloadImage(canvas);
                         }});
@@ -326,16 +326,16 @@ if reports:
 
         function downloadImage(canvas) {{
             var link = document.createElement('a');
-            link.download = 'Bao_Cao_Tien_Do_Full.png';
+            link.download = 'Bao_Cao_Tien_Do_Ngang.png';
             link.href = canvas.toDataURL('image/png');
             link.click();
-            alert("📥 Ảnh báo cáo đã tải về máy! Anh gửi ảnh vừa tải qua Zalo/WeChat nhé!");
+            alert("📥 Ảnh báo cáo dạng ngang đã tải về máy! Anh gửi ảnh vừa tải qua Zalo/WeChat nhé!");
         }}
         </script>
     </body>
     </html>
     """
-    components.html(export_html, height=380, scrolling=True)
+    components.html(export_html, height=450, scrolling=True)
 
 # KHUNG QUẢN LÝ BẢN GHI
 if reports:

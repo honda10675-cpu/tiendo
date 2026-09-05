@@ -5,6 +5,7 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 import pandas as pd
 import streamlit as st
+from PIL import Image, ImageDraw, ImageFont
 from supabase import Client, create_client
 
 st.set_page_config(page_title="BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC", layout="wide")
@@ -57,6 +58,92 @@ def translate_to_zh(text):
         pass
 
     return ""
+
+# Hàm tạo ảnh PNG trực tiếp bằng Pillow (Không gây lỗi máy chủ)
+def create_table_image(reports_data):
+    width = 1200
+    row_height = 65
+    header_height = 80
+    padding_top = 70
+    
+    total_height = padding_top + header_height + max(1, len(reports_data)) * row_height + 40
+    img = Image.new('RGB', (width, total_height), color='#ffffff')
+    draw = ImageDraw.Draw(img)
+
+    try:
+        font_title = ImageFont.truetype("arial.ttf", 22)
+        font_header = ImageFont.truetype("arial.ttf", 13)
+        font_body = ImageFont.truetype("arial.ttf", 12)
+    except Exception:
+        font_title = font_header = font_body = ImageFont.load_default()
+
+    # Tiêu đề
+    draw.text((width // 2, 25), "BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC / 设备维修进度汇报", fill="#1e40af", font=font_title, anchor="mm")
+
+    # Kích thước cột
+    cols = [
+        ("STT\n序号", 60),
+        ("Máy\n设备", 100),
+        ("Thời Gian Bắt Đầu\n开始时间", 160),
+        ("Nội Dung Sửa Chữa\n维修内容", 330),
+        ("Giải Pháp\n解决方案", 330),
+        ("Dự Kiến\n预计完成", 120),
+        ("Trạng Thái\n状态", 100)
+    ]
+
+    # Vẽ Header
+    x_curr = 20
+    y_curr = padding_top
+    draw.rectangle([x_curr, y_curr, width - 20, y_curr + header_height], fill="#1e40af")
+
+    for title, col_w in cols:
+        draw.text((x_curr + col_w // 2, y_curr + header_height // 2), title, fill="#ffffff", font=font_header, anchor="mm", align="center")
+        draw.rectangle([x_curr, y_curr, x_curr + col_w, y_curr + header_height], outline="#ffffff", width=1)
+        x_curr += col_w
+
+    # Vẽ Dữ Liệu
+    y_curr += header_height
+    for idx, r in enumerate(reports_data, 1):
+        x_curr = 20
+        is_done = r.get("status") == "Hoàn thành"
+        bg_color = "#f8fafc" if idx % 2 == 0 else "#ffffff"
+        draw.rectangle([x_curr, y_curr, width - 20, y_curr + row_height], fill=bg_color)
+
+        c_vi_val = r.get("content_vi", "")
+        c_zh_val = r.get("content_zh") if r.get("content_zh") else translate_to_zh(c_vi_val)
+        full_c = f"{c_vi_val}\n({c_zh_val})" if c_zh_val else c_vi_val
+
+        s_vi_val = r.get("solution_vi") if r.get("solution_vi") else r.get("solution", "")
+        s_zh_val = r.get("solution_zh") if r.get("solution_zh") else translate_to_zh(s_vi_val)
+        full_s = f"{s_vi_val}\n({s_zh_val})" if s_zh_val else s_vi_val
+
+        st_text = "Đã xong\n已完成" if is_done else "Đang sửa\n维修中"
+
+        row_vals = [
+            str(idx),
+            r.get("machine_name", ""),
+            convert_utc_to_vn(r.get("created_at", "")),
+            full_c,
+            full_s,
+            r.get("estimated_time", ""),
+            st_text
+        ]
+
+        for i, (val, (title, col_w)) in enumerate(zip(row_vals, cols)):
+            text_color = "#15803d" if i == 6 and is_done else ("#b45309" if i == 6 else "#0f172a")
+            align_anchor = "lm" if i in [3, 4] else "mm"
+            text_x = x_curr + 10 if i in [3, 4] else x_curr + col_w // 2
+
+            draw.text((text_x, y_curr + row_height // 2), val, fill=text_color, font=font_body, anchor=align_anchor)
+            draw.rectangle([x_curr, y_curr, x_curr + col_w, y_curr + row_height], outline="#cbd5e1", width=1)
+            x_curr += col_w
+
+        y_curr += row_height
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf.getvalue()
 
 # Kết nối Supabase
 try:
@@ -190,15 +277,15 @@ with st.container():
     except Exception:
         reports = []
 
-    # ĐỔI TÊN NÚT TẢI
+    # NÚT TẢI DẠNG HÌNH ẢNH PNG
     with col_b2:
         if reports:
-            csv_data = pd.DataFrame(reports).to_csv(index=False).encode('utf-8-sig')
+            img_bytes = create_table_image(reports)
             st.download_button(
                 label="Tải ảnh bảng tiến độ sửa chữa",
-                data=csv_data,
-                file_name=f"Bao_Cao_Tien_Do_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv",
+                data=img_bytes,
+                file_name=f"Bao_Cao_Tien_Do_{datetime.now().strftime('%Y%m%d_%H%M')}.png",
+                mime="image/png",
                 use_container_width=True
             )
         else:

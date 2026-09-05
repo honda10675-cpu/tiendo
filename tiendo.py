@@ -1,11 +1,10 @@
-import io
+import base64
 import json
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 import pandas as pd
 import streamlit as st
-from PIL import Image, ImageDraw, ImageFont
 from supabase import Client, create_client
 
 st.set_page_config(page_title="BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC", layout="wide")
@@ -59,92 +58,6 @@ def translate_to_zh(text):
 
     return ""
 
-# Hàm tạo ảnh PNG trực tiếp chuẩn định dạng hình ảnh cho Zalo / WeChat
-def generate_png_image(reports_data):
-    width = 1200
-    row_height = 70
-    header_height = 80
-    padding_top = 80
-    
-    total_height = padding_top + header_height + max(1, len(reports_data)) * row_height + 40
-    img = Image.new('RGB', (width, total_height), color='#fdf2f8') # Nền hồng phấn dịu
-    draw = ImageDraw.Draw(img)
-
-    try:
-        font_title = ImageFont.truetype("arial.ttf", 22)
-        font_header = ImageFont.truetype("arial.ttf", 13)
-        font_body = ImageFont.truetype("arial.ttf", 12)
-    except Exception:
-        font_title = font_header = font_body = ImageFont.load_default()
-
-    # Tiêu đề
-    draw.text((width // 2, 30), "BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC / 设备维修进度汇报", fill="#1e40af", font=font_title, anchor="mm")
-
-    # Kích thước cột
-    cols = [
-        ("STT\n序号", 60),
-        ("Máy\n设备", 100),
-        ("Thời Gian Bắt Đầu\n开始时间", 160),
-        ("Nội Dung Sửa Chữa\n维修内容", 330),
-        ("Giải Pháp\n解决方案", 330),
-        ("Dự Kiến\n预计完成", 120),
-        ("Trạng Thái\n状态", 100)
-    ]
-
-    # Vẽ Header Xanh Dương
-    x_curr = 20
-    y_curr = padding_top
-    draw.rectangle([x_curr, y_curr, width - 20, y_curr + header_height], fill="#1e40af")
-
-    for title, col_w in cols:
-        draw.text((x_curr + col_w // 2, y_curr + header_height // 2), title, fill="#ffffff", font=font_header, anchor="mm", align="center")
-        draw.rectangle([x_curr, y_curr, x_curr + col_w, y_curr + header_height], outline="#1e3a8a", width=1)
-        x_curr += col_w
-
-    # Vẽ Dữ Liệu Xoay Kẽ Trắng - Hồng
-    y_curr += header_height
-    for idx, r in enumerate(reports_data, 1):
-        x_curr = 20
-        is_done = r.get("status") == "Hoàn thành"
-        bg_color = "#ffffff" if idx % 2 == 1 else "#fbcfe8"
-        draw.rectangle([x_curr, y_curr, width - 20, y_curr + row_height], fill=bg_color)
-
-        c_vi_val = r.get("content_vi", "")
-        c_zh_val = r.get("content_zh") if r.get("content_zh") else translate_to_zh(c_vi_val)
-        full_c = f"{c_vi_val}\n({c_zh_val})" if c_zh_val else c_vi_val
-
-        s_vi_val = r.get("solution_vi") if r.get("solution_vi") else r.get("solution", "")
-        s_zh_val = r.get("solution_zh") if r.get("solution_zh") else translate_to_zh(s_vi_val)
-        full_s = f"{s_vi_val}\n({s_zh_val})" if s_zh_val else s_vi_val
-
-        st_text = "Đã xong\n已完成" if is_done else "Đang sửa\n维修中"
-
-        row_vals = [
-            str(idx),
-            r.get("machine_name", ""),
-            convert_utc_to_vn(r.get("created_at", "")),
-            full_c,
-            full_s,
-            r.get("estimated_time", ""),
-            st_text
-        ]
-
-        for i, (val, (title, col_w)) in enumerate(zip(row_vals, cols)):
-            text_color = "#16a34a" if i == 6 and is_done else ("#d97706" if i == 6 else "#0f172a")
-            align_anchor = "lm" if i in [3, 4] else "mm"
-            text_x = x_curr + 10 if i in [3, 4] else x_curr + col_w // 2
-
-            draw.text((text_x, y_curr + row_height // 2), val, fill=text_color, font=font_body, anchor=align_anchor)
-            draw.rectangle([x_curr, y_curr, x_curr + col_w, y_curr + row_height], outline="#f472b6", width=1)
-            x_curr += col_w
-
-        y_curr += row_height
-
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-    return buf.getvalue()
-
 # Kết nối Supabase
 try:
     url = st.secrets["SUPABASE_URL"]
@@ -154,7 +67,7 @@ except Exception:
     st.error("Chưa cấu hình Secrets SUPABASE_URL và SUPABASE_KEY!")
     st.stop()
 
-# CSS giao diện
+# CSS GIAO DIỆN CHỦ ĐỀ XANH - TRẮNG - HỒNG
 st.markdown("""
 <style>
     .stApp {
@@ -171,6 +84,7 @@ st.markdown("""
         text-align: center;
         color: #be185d;
         font-size: 13px;
+        font-weight: 500;
         margin-bottom: 15px;
     }
     .table-header {
@@ -195,6 +109,8 @@ st.markdown('<div class="sub-title">设备维修进度汇报</div>', unsafe_allo
 
 if "edit_id" not in st.session_state:
     st.session_state.edit_id = None
+if "show_image" not in st.session_state:
+    st.session_state.show_image = False
 
 edit_data = {}
 if st.session_state.edit_id:
@@ -273,26 +189,83 @@ with st.container():
                 st.success("Lưu báo cáo thành công!")
                 st.rerun()
 
-    # Lấy dữ liệu báo cáo từ Supabase
-    try:
-        res = supabase.table("repair_reports").select("*").order("id", desc=True).execute()
-        reports = res.data
-    except Exception:
-        reports = []
-
-    # NÚT XUẤT ÁNH CHUẨN PNG (GỬI ĐƯỢC VÀO ZALO / WECHAT)
+    # NÚT BẤM XUẤT HÌNH ÁNH ĐỂ LƯU
     with col_b2:
-        if reports:
-            png_bytes = generate_png_image(reports)
-            st.download_button(
-                label="Tải ảnh bảng tiến độ sửa chữa",
-                data=png_bytes,
-                file_name=f"Bao_Cao_Tien_Do_{datetime.now().strftime('%Y%m%d_%H%M')}.png",
-                mime="image/png",
-                use_container_width=True
-            )
-        else:
-            st.button("Tải ảnh bảng tiến độ sửa chữa", disabled=True, use_container_width=True)
+        if st.button("📸 Xuất Ảnh Bảng Tiến Độ", use_container_width=True):
+            st.session_state.show_image = not st.session_state.show_image
+
+# Lấy dữ liệu báo cáo từ Supabase
+try:
+    res = supabase.table("repair_reports").select("*").order("id", desc=True).execute()
+    reports = res.data
+except Exception:
+    reports = []
+
+# HIỂN THỊ ẢNH ĐỂ NHẤN GIỮ LƯU / GỬI ZALO
+if st.session_state.show_image and reports:
+    st.info("💡 **Cách gửi Zalo:** Nhấn giữ vào bức ảnh bên dưới 2 giây -> Chọn **Lưu ảnh** hoặc **Chia sẻ sang Zalo/WeChat**.")
+    
+    rows_svg = ""
+    y_pos = 120
+    for idx, r in enumerate(reports, 1):
+        is_done = r.get("status") == "Hoàn thành"
+        bg_cls = "#ffffff" if idx % 2 == 1 else "#fdf2f8"
+        time_display = convert_utc_to_vn(r.get("created_at", ""))
+        
+        c_vi_val = r.get("content_vi", "")
+        c_zh_val = r.get("content_zh") if r.get("content_zh") else translate_to_zh(c_vi_val)
+        
+        s_vi_val = r.get("solution_vi") if r.get("solution_vi") else r.get("solution", "")
+        s_zh_val = r.get("solution_zh") if r.get("solution_zh") else translate_to_zh(s_vi_val)
+        
+        st_color = "#16a34a" if is_done else "#d97706"
+        st_text_vi = "🟢 Đã xong" if is_done else "🟡 Đang sửa"
+        st_text_zh = "已完成" if is_done else "维修中"
+
+        rows_svg += f"""
+        <rect x="20" y="{y_pos}" width="1160" height="70" fill="{bg_cls}" stroke="#fbcfe8" />
+        <text x="50" y="{y_pos+40}" font-size="14" font-weight="bold" text-anchor="middle">{idx}</text>
+        <text x="110" y="{y_pos+40}" font-size="14" font-weight="bold" fill="#1e40af" text-anchor="middle">{r.get('machine_name', '')}</text>
+        <text x="210" y="{y_pos+40}" font-size="12" fill="#475569" text-anchor="middle">{time_display}</text>
+        
+        <text x="300" y="{y_pos+30}" font-size="13" fill="#0f172a">{c_vi_val[:35]}</text>
+        <text x="300" y="{y_pos+50}" font-size="12" fill="#db2777">{c_zh_val[:35]}</text>
+        
+        <text x="630" y="{y_pos+30}" font-size="13" fill="#0f172a">{s_vi_val[:35]}</text>
+        <text x="630" y="{y_pos+50}" font-size="12" fill="#db2777">{s_zh_val[:35]}</text>
+        
+        <text x="1000" y="{y_pos+40}" font-size="13" text-anchor="middle">{r.get('estimated_time', '')}</text>
+        
+        <text x="1110" y="{y_pos+30}" font-size="13" font-weight="bold" fill="{st_color}" text-anchor="middle">{st_text_vi}</text>
+        <text x="1110" y="{y_pos+50}" font-size="12" fill="{st_color}" text-anchor="middle">{st_text_zh}</text>
+        """
+        y_pos += 70
+
+    svg_height = y_pos + 30
+    svg_code = f"""
+    <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="{svg_height}" style="background-color: #fdf2f8; font-family: Arial, sans-serif;">
+        <rect x="10" y="10" width="1180" height="{svg_height-20}" rx="10" fill="#ffffff" stroke="#f472b6" stroke-width="2"/>
+        <text x="600" y="45" font-size="22" font-weight="bold" fill="#1e40af" text-anchor="middle">BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC</text>
+        <text x="600" y="68" font-size="14" font-weight="bold" fill="#be185d" text-anchor="middle">设备维修进度汇报</text>
+        
+        <!-- Header -->
+        <rect x="20" y="80" width="1160" height="40" fill="#1e40af" />
+        <text x="50" y="105" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">STT</text>
+        <text x="110" y="105" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">Máy</text>
+        <text x="210" y="105" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">Bắt Đầu</text>
+        <text x="450" y="105" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">Nội Dung Sửa Chữa / 维修内容</text>
+        <text x="780" y="105" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">Giải Pháp / 解决方案</text>
+        <text x="1000" y="105" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">Dự Kiến</text>
+        <text x="1110" y="105" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">Trạng Thái</text>
+        
+        {rows_svg}
+    </svg>
+    """
+    
+    # Mã hóa SVG thành Ảnh PNG hiển thị trực tiếp
+    b64_svg = base64.b64encode(svg_code.encode('utf-8')).decode('utf-8')
+    st.markdown(f'<img src="data:image/svg+xml;base64,{b64_svg}" style="width:100%; border-radius:8px; border:1px solid #f472b6;">', unsafe_allow_html=True)
+    st.divider()
 
 # BẢNG TIẾN ĐỘ HIỂN THỊ TRÊN MÀN HÌNH APP
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)

@@ -11,7 +11,7 @@ st.set_page_config(page_title="BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC", l
 def convert_utc_to_vn(dt_str):
     if not dt_str:
         tz_vn = timezone(timedelta(hours=7))
-        return datetime.now(tz_vn).strftime("%Y-%m-%d %H:%M")
+        return datetime.now(tz_vn).strftime("%d/%m %H:%M")
     try:
         clean_str = dt_str.replace("T", " ")[:19]
         dt = datetime.strptime(clean_str, "%Y-%m-%d %H:%M:%S")
@@ -58,8 +58,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# TRUY VẤN LẤY TẤT CẢ DỮ LIỆU (KHÔNG BỊ GIỚI HẠN DÒNG)
 try:
-    res = supabase.table("repair_reports").select("*").order("id", desc=True).execute()
+    res = supabase.table("repair_reports").select("*").order("id", desc=False).limit(1000).execute()
     reports = res.data
 except Exception:
     reports = []
@@ -183,6 +184,9 @@ if reports:
     </body>
     </html>
     """
-    components.html(export_html, height=700, scrolling=True)
+    
+    # Tự động tính độ cao khung theo số lượng dòng dữ liệu
+    dynamic_height = max(600, len(reports) * 85 + 120)
+    components.html(export_html, height=dynamic_height, scrolling=True)
 else:
-    st.info("Chưa có dữ liệu báo cáo nào.")
+    st.info("Chưa có dữ liệu báo cáo nào trong cơ sở dữ liệu.")

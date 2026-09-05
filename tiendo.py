@@ -192,7 +192,7 @@ try:
 except Exception:
     reports = []
 
-# TẠO NÚT COPY / TẢI ẢNH BÁO CÁO TỰ ĐỘNG (NGẦM)
+# TẠO NÚT COPY / TẢI ẢNH BÁO CÁO TỰ ĐỘNG
 if reports:
     rows_html = ""
     for idx, r in enumerate(reports, 1):
@@ -212,21 +212,21 @@ if reports:
 
         rows_html += f"""
         <tr style="background-color: {bg_cls};">
-            <td style="padding: 10px; text-align: center; font-weight: bold; border-bottom: 1px solid #f472b6;">{idx}</td>
-            <td style="padding: 10px; text-align: center; font-weight: bold; color: #1e40af; border-bottom: 1px solid #f472b6;">{r.get('machine_name', '')}</td>
-            <td style="padding: 10px; text-align: center; font-size: 13px; color: #475569; border-bottom: 1px solid #f472b6;">{time_display}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: 500; color: #0f172a; font-size: 14px;">{c_vi_val}</div>
-                <div style="color: #db2777; font-size: 13px; font-weight: bold; margin-top: 2px;">{c_zh_val}</div>
+            <td style="padding: 8px 4px; text-align: center; font-weight: bold; border-bottom: 1px solid #f472b6; font-size: 11px;">{idx}</td>
+            <td style="padding: 8px 4px; text-align: center; font-weight: bold; color: #1e40af; border-bottom: 1px solid #f472b6; font-size: 11px;">{r.get('machine_name', '')}</td>
+            <td style="padding: 8px 4px; text-align: center; font-size: 10px; color: #475569; border-bottom: 1px solid #f472b6;">{time_display}</td>
+            <td style="padding: 8px 4px; border-bottom: 1px solid #f472b6;">
+                <div style="font-weight: 500; color: #0f172a; font-size: 11px;">{c_vi_val}</div>
+                <div style="color: #db2777; font-size: 10px; font-weight: bold; margin-top: 2px;">{c_zh_val}</div>
             </td>
-            <td style="padding: 10px; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: 500; color: #0f172a; font-size: 14px;">{s_vi_val}</div>
-                <div style="color: #db2777; font-size: 13px; font-weight: bold; margin-top: 2px;">{s_zh_val}</div>
+            <td style="padding: 8px 4px; border-bottom: 1px solid #f472b6;">
+                <div style="font-weight: 500; color: #0f172a; font-size: 11px;">{s_vi_val}</div>
+                <div style="color: #db2777; font-size: 10px; font-weight: bold; margin-top: 2px;">{s_zh_val}</div>
             </td>
-            <td style="padding: 10px; text-align: center; font-weight: 500; color: #334155; border-bottom: 1px solid #f472b6; font-size: 13px;">{r.get('estimated_time', '')}</td>
-            <td style="padding: 10px; text-align: center; border-bottom: 1px solid #f472b6;">
-                <div style="font-weight: bold; color: {st_color}; font-size: 13px;">{st_text_vi}</div>
-                <div style="font-weight: bold; color: {st_color}; font-size: 12px;">{st_text_zh}</div>
+            <td style="padding: 8px 4px; text-align: center; font-weight: 500; color: #334155; border-bottom: 1px solid #f472b6; font-size: 10px;">{r.get('estimated_time', '')}</td>
+            <td style="padding: 8px 4px; text-align: center; border-bottom: 1px solid #f472b6;">
+                <div style="font-weight: bold; color: {st_color}; font-size: 10px;">{st_text_vi}</div>
+                <div style="font-weight: bold; color: {st_color}; font-size: 9px;">{st_text_zh}</div>
             </td>
         </tr>
         """
@@ -238,7 +238,7 @@ if reports:
     <meta charset="utf-8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        body {{ margin: 0; padding: 0; font-family: -apple-system, sans-serif; background-color: transparent; }}
+        body {{ margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: transparent; }}
         .btn-box {{ text-align: center; margin: 5px 0; }}
         .btn-copy {{
             background-color: #be185d;
@@ -258,21 +258,23 @@ if reports:
             position: absolute;
             left: -9999px;
             top: -9999px;
-            width: 900px;
+            width: 1000px;
+            box-sizing: border-box;
             background-color: #fdf2f8;
-            padding: 20px;
-            border-radius: 12px;
-            border: 3px solid #be185d;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #be185d;
         }}
-        .title {{ text-align: center; color: #1e40af; font-size: 22px; font-weight: bold; }}
-        .subtitle {{ text-align: center; color: #be185d; font-size: 15px; font-weight: bold; margin-bottom: 15px; }}
-        table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }}
-        th {{ background-color: #1e40af; color: white; font-size: 14px; padding: 10px; text-align: center; }}
+        .title {{ text-align: center; color: #1e40af; font-size: 18px; font-weight: bold; }}
+        .subtitle {{ text-align: center; color: #be185d; font-size: 13px; font-weight: bold; margin-bottom: 10px; }}
+        table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 6px; overflow: hidden; table-layout: fixed; }}
+        th {{ background-color: #1e40af; color: white; font-size: 11px; padding: 6px 2px; text-align: center; word-wrap: break-word; }}
+        td {{ word-wrap: break-word; overflow-wrap: break-word; }}
     </style>
     </head>
     <body>
         <div class="btn-box">
-            <button class="btn-copy" onclick="captureAndCopy()">📷 TẢI / COPY ẢNH BÁO CÁO (GỬI ZALO / WECHAT)</button>
+            <button class="btn-copy" onclick="captureAndCopy()">📸 BẬT KHUNG COPY / TẢI ẢNH BÁO CÁO</button>
         </div>
 
         <div id="hidden-report">
@@ -281,13 +283,13 @@ if reports:
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 6%;">STT<br><small>序号</small></th>
-                        <th style="width: 12%;">Máy<br><small>设备</small></th>
-                        <th style="width: 16%;">Bắt Đầu<br><small>开始时间</small></th>
+                        <th style="width: 5%;">STT<br><small>序号</small></th>
+                        <th style="width: 10%;">Máy<br><small>设备</small></th>
+                        <th style="width: 15%;">Bắt Đầu<br><small>开始时间</small></th>
                         <th style="width: 26%;">Nội Dung Sửa Chữa<br><small>维修内容</small></th>
                         <th style="width: 26%;">Giải Pháp<br><small>解决方案</small></th>
-                        <th style="width: 14%;">Dự Kiến<br><small>预计完成</small></th>
-                        <th style="width: 10%;">Trạng Thái<br><small>状态</small></th>
+                        <th style="width: 9%;">Dự Kiến<br><small>预计完成</small></th>
+                        <th style="width: 9%;">Trạng Thái<br><small>状态</small></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -304,7 +306,7 @@ if reports:
                     if (navigator.clipboard && window.ClipboardItem) {{
                         var item = new ClipboardItem({{ "image/png": blob }});
                         navigator.clipboard.write([item]).then(function() {{
-                            alert("✅ Đã sao chép ảnh báo cáo! Mở Zalo/WeChat bấm Dán (Paste) là xong!");
+                            alert("✅ Đã sao chép ảnh báo cáo đầy đủ! Mở Zalo/WeChat bấm Dán (Paste) là xong!");
                         }}).catch(function(err) {{
                             downloadImage(canvas);
                         }});

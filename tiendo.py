@@ -192,7 +192,7 @@ try:
 except Exception:
     reports = []
 
-# TẠO NÚT COPY / TẢI ẢNH BÁO CÁO TỰ ĐỘNG (NGẦM), KHÔNG HIỂN THỊ LÀM XẤU GIAO DIỆN
+# TẠO NÚT COPY / TẢI ẢNH BÁO CÁO TỰ ĐỘNG (NGẦM)
 if reports:
     rows_html = ""
     for idx, r in enumerate(reports, 1):
@@ -239,7 +239,7 @@ if reports:
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body {{ margin: 0; padding: 0; font-family: -apple-system, sans-serif; background-color: transparent; }}
-        .btn-box {{ text-align: center; margin: 10px 0; }}
+        .btn-box {{ text-align: center; margin: 5px 0; }}
         .btn-copy {{
             background-color: #be185d;
             color: white;
@@ -254,7 +254,6 @@ if reports:
         }}
         .btn-copy:active {{ background-color: #9d174d; }}
         
-        /* Khung báo cáo ngầm chỉ xuất hiện khi chụp ảnh */
         #hidden-report {{
             position: absolute;
             left: -9999px;
@@ -276,7 +275,6 @@ if reports:
             <button class="btn-copy" onclick="captureAndCopy()">📷 TẢI / COPY ẢNH BÁO CÁO (GỬI ZALO / WECHAT)</button>
         </div>
 
-        <!-- Khung bảng chuẩn đẹp ngầm dưới background -->
         <div id="hidden-report">
             <div class="title">BÁO CÁO TIẾN ĐỘ SỬA CHỮA MÁY MÓC</div>
             <div class="subtitle">设备维修进度汇报</div>
@@ -303,7 +301,6 @@ if reports:
             var element = document.getElementById('hidden-report');
             html2canvas(element, {{ scale: 2 }}).then(function(canvas) {{
                 canvas.toBlob(function(blob) {{
-                    // Thử copy thẳng vào Clipboard
                     if (navigator.clipboard && window.ClipboardItem) {{
                         var item = new ClipboardItem({{ "image/png": blob }});
                         navigator.clipboard.write([item]).then(function() {{
@@ -311,7 +308,7 @@ if reports:
                         }}).catch(function(err) {{
                             downloadImage(canvas);
                         }});
-                    } else {{
+                    }} else {{
                         downloadImage(canvas);
                     }}
                 }});

@@ -190,19 +190,19 @@ with st.container():
     except Exception:
         reports = []
 
+    # ĐỔI TÊN NÚT TẢI
     with col_b2:
         if reports:
-            # Tạo file CSV tiêu chuẩn mở nhanh ra Excel/Hình ảnh báo cáo
             csv_data = pd.DataFrame(reports).to_csv(index=False).encode('utf-8-sig')
             st.download_button(
-                label="Tải Báo Cáo / 下载汇报",
+                label="Tải ảnh bảng tiến độ sửa chữa",
                 data=csv_data,
                 file_name=f"Bao_Cao_Tien_Do_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                 mime="text/csv",
                 use_container_width=True
             )
         else:
-            st.button("Tải Báo Cáo / 下载汇报", disabled=True, use_container_width=True)
+            st.button("Tải ảnh bảng tiến độ sửa chữa", disabled=True, use_container_width=True)
 
 # BẢNG TIẾN ĐỘ TƯƠNG THÍCH ĐIỆN THOẠI
 st.markdown('<div class="table-header">BẢNG TIẾN ĐỘ SỬA CHỮA / 维修进度表</div>', unsafe_allow_html=True)
